@@ -1,0 +1,27 @@
+{
+  "name": "Nurse Duty Scheduler — 간호사 듀티 스케줄러",
+  "short_name": "듀티 스케줄러",
+  "description": "한국 간호 표준에 부합하는 무료 간호사 3교대 듀티 자동 배치 도구. 금지 패턴 검사, 원티드 듀티 관리, 자동배치 알고리듬 탑재.",
+  "lang": "ko-KR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#1E6DBF",
+  "categories": ["productivity", "medical", "business"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
