@@ -547,7 +547,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span>Version 3.9 · Public Release</span>
+        <span>Version 3.9.7 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -4765,13 +4765,41 @@ function importJSON(evt){
       var monthsArr = Object.keys(monthsInFile).sort();
       var monthsLabel = monthsArr.length ? monthsArr.join(', ') : '없음 (빈 듀티표)';
 
-      // nurse ID 충돌 체크
+      // nurse ID 충돌 체크 — v3.9.7 개선
+      // 같은 ID + 같은 이름 + 같은 직급 = 동일 인물 (본인 백업 복원). 충돌 아님.
+      // 같은 ID + 다른 이름/직급 = 진짜 충돌. ID 재부여 권장.
       var fileIds = data.nurses.map(function(n){return n.id;});
       var currIds = nurses.map(function(n){return n.id;});
-      var idConflicts = fileIds.filter(function(id){return currIds.indexOf(id)>=0;}).length;
+      var currById = {};
+      nurses.forEach(function(n){ currById[n.id] = n; });
 
-      // 검증 다이얼로그 — v3.9.4 강화: 파일 내용 명확히 표시
-      var msg = '📂 듀티 파일 불러오기 검증\n\n'
+      var realConflicts = []; // 같은 ID인데 다른 사람인 경우만
+      data.nurses.forEach(function(fileNurse){
+        var existing = currById[fileNurse.id];
+        if(existing){
+          // 같은 ID라도 이름·직급이 동일하면 본인 백업이므로 충돌 아님
+          var samePerson = (existing.name === fileNurse.name) && (existing.role === fileNurse.role);
+          if(!samePerson){
+            realConflicts.push({
+              id: fileNurse.id,
+              fileName: fileNurse.name + '('+fileNurse.role+')',
+              currName: existing.name + '('+existing.role+')'
+            });
+          }
+        }
+      });
+      var idConflicts = realConflicts.length;
+
+      // 본인 백업 복원인지 판단 (모든 간호사가 동일 인물)
+      var allSamePeople = data.nurses.every(function(fileNurse){
+        var existing = currById[fileNurse.id];
+        return existing && existing.name === fileNurse.name && existing.role === fileNurse.role;
+      });
+      var sameWardSameNurses = (data.nurses.length === nurses.length) && allSamePeople;
+
+      // 검증 다이얼로그 — v3.9.7 강화: 본인 백업 vs 진짜 교체 구분
+      var titleEmoji = sameWardSameNurses ? '🔄 백업 복원' : '📂 듀티 파일 불러오기';
+      var msg = titleEmoji + ' 검증\n\n'
         +'[ 파일 정보 ]\n'
         +'  병동명: '+fileWardName+'\n'
         +'  간호사: '+data.nurses.length+'명\n'
@@ -4783,17 +4811,31 @@ function importJSON(evt){
         +'  병동명: '+currWardName+'\n'
         +'  간호사: '+nurses.length+'명\n\n';
 
-      if(fileWardName!==currWardName && fileWardName!=='알 수 없음')
-        msg += '⚠️ 병동명 불일치: ['+fileWardName+'] → ['+currWardName+']\n';
-      if(idConflicts>0)
-        msg += '⚠️ 간호사 ID 충돌: '+idConflicts+'명\n';
-      msg += '\n불러오면 ['+currWardName+'] 데이터가 교체됩니다. 계속하시겠습니까?';
+      if(sameWardSameNurses){
+        msg += '✓ 본인 백업 파일로 인식됨 (간호사 구성 일치)\n'
+            +  '  → 현재 데이터가 파일 시점으로 복원됩니다.\n\n';
+      } else {
+        if(fileWardName!==currWardName && fileWardName!=='알 수 없음')
+          msg += '⚠️ 병동명 불일치: ['+currWardName+'] → ['+fileWardName+']\n';
+        if(idConflicts>0){
+          msg += '⚠️ ID 충돌 ('+idConflicts+'명) — 같은 ID에 다른 사람이 등록되어 있습니다:\n';
+          realConflicts.slice(0,3).forEach(function(rc){
+            msg += '   · ID '+rc.id+': 현재 '+rc.currName+' → 파일 '+rc.fileName+'\n';
+          });
+          if(realConflicts.length > 3) msg += '   ... 외 '+(realConflicts.length-3)+'명\n';
+        }
+        msg += '\n불러오면 현재 데이터가 파일 내용으로 교체됩니다.\n계속하시겠습니까?';
+      }
 
       if(!confirm(msg)){evt.target.value='';return;}
 
-      // ID 충돌 시 재부여
-      if(idConflicts>0){
-        if(confirm('간호사 ID 충돌('+idConflicts+'명)이 감지됐습니다.\nID를 자동 재부여해 스케줄 충돌을 방지하시겠습니까?')){
+      // ID 충돌 시 재부여 (본인 백업 복원인 경우는 건너뜀)
+      if(idConflicts>0 && !sameWardSameNurses){
+        if(confirm('⚠️ ID 충돌 ('+idConflicts+'명) 처리\n\n'
+          +'같은 ID에 다른 간호사가 있어 듀티가 잘못 매칭될 수 있습니다.\n'
+          +'파일 간호사들의 ID를 새로 재부여하시겠습니까?\n\n'
+          +'예 = 안전하게 재부여 (권장)\n'
+          +'아니오 = 그대로 진행 (파일 ID 우선)')){
           var maxId=Math.max.apply(null,currIds.concat([nextId]));
           var idMap={};
           data.nurses.forEach(function(n){
@@ -4807,6 +4849,16 @@ function importJSON(evt){
             newSched[pts.join('|')]=data.schedule[k];
           });
           data.schedule=newSched;
+          // v3.9.7: 원티드 락도 ID 매핑 따라 갱신
+          if(data.lockedCells){
+            var newLocks={};
+            Object.keys(data.lockedCells).forEach(function(k){
+              var pts=k.split('|');
+              if(idMap[parseInt(pts[0])]!==undefined) pts[0]=String(idMap[parseInt(pts[0])]);
+              newLocks[pts.join('|')]=data.lockedCells[k];
+            });
+            data.lockedCells=newLocks;
+          }
           nextId=maxId+1;
         }
       }
@@ -4839,7 +4891,10 @@ function importJSON(evt){
       }
 
       saveLocal();updateRollbackBtn();render();
-      showToast('✓ ['+fileWardName+'] 불러오기 완료 — '+nurses.length+'명',2500);
+      var successMsg = sameWardSameNurses
+        ? '🔄 백업 복원 완료 — ['+fileWardName+'] '+nurses.length+'명'
+        : '✓ ['+fileWardName+'] 불러오기 완료 — '+nurses.length+'명';
+      showToast(successMsg, 2500);
     }catch(err){
       showToast('파일 오류: '+err.message);
     }
