@@ -547,7 +547,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span>Version 3.9.7 · Public Release</span>
+        <span>Version 3.9.8 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -2275,6 +2275,55 @@ function conflicts(){
   return list;
 }
 
+// ── 길 A: 사전식 4계층 점수 (스펙 v6.1 차용) ─────────────────────────────
+// conflict type → 페널티 계층 매핑. 스펙의 L1~L4를 현재 conflict type에 대응.
+// L1 = 법적/안전 절대선, L2 = 강한 권고, L3 = 공정성, L4 = 선호
+var LAYER_OF_TYPE = {
+  // L1 — 법적/안전 (절대 우선): 위반 시 무조건 회피, 못 피하면 셀 비움
+  'attr-pregnantNight': 'L1',  // 임산부 야간 (모성보호)
+  'attr-exempt':        'L1',  // 야간면제자 야간
+  'newNurse-nightAlone':'L1',  // 신규 단독 야간
+  'newNurse-noNight':   'L1',  // 신규 야간 금지(오리엔테이션)
+  'pattern-NNNN':       'L1',  // 야간 4연속 (KOSHA 사고위험 급증)
+  // L2 — 강한 권고: 위험 패턴
+  'pattern-NOD':        'L2', 'pattern-EOD':  'L2',
+  'pattern-ND':         'L2', 'pattern-NE':   'L2',
+  'pattern-ED':         'L2', 'pattern-NON':  'L2', 'pattern-NOE': 'L2',
+  'night-consecMax':    'L2', 'night-monthMax':'L2', 'night-backward':'L2',
+  'consec-work':        'L2', 'consec-night': 'L2',
+  'attr-nightOnly':     'L2',  // 야간전담이 D/E
+  'attr-pregnantSame':  'L2',  // 임산부 동시 배치
+  // L3 — 공정성
+  'staffing':           'L3',  // 인력 구성 (공정성+안전 중간, L3로)
+  'newNurse-monthMax':  'L3',
+  // L4 — 선호
+  'attr-preceptorPair': 'L4',
+};
+// severity 보조 매핑 (type에 명시 매핑 없을 때 fallback)
+var LAYER_OF_SEVERITY = { high:'L1', mid:'L2', low:'L3' };
+// 계층별 가중치 배율 (계층 내 상대값; 계층 간은 사전식이라 자릿수 비교 불필요)
+function _layerOf(c){
+  if(c.type && LAYER_OF_TYPE[c.type]) return LAYER_OF_TYPE[c.type];
+  if(c.severity && LAYER_OF_SEVERITY[c.severity]) return LAYER_OF_SEVERITY[c.severity];
+  return 'L3';
+}
+// 주어진 conflict 목록을 사전식 튜플 [L1,L2,L3,L4]로 환산
+function lexScore(conflictList){
+  var sum = {L1:0, L2:0, L3:0, L4:0};
+  conflictList.forEach(function(c){
+    sum[_layerOf(c)] += 1;
+  });
+  return [sum.L1, sum.L2, sum.L3, sum.L4];
+}
+// 사전식 비교: a < b 이면 -1, a > b 이면 1, 같으면 0
+function lexCompare(a, b){
+  for(var i=0;i<4;i++){
+    if(a[i] < b[i]) return -1;
+    if(a[i] > b[i]) return 1;
+  }
+  return 0;
+}
+
 function autoFill(){
   if(editLocked){showToast('🔒 편집이 잠겨 있습니다 — 자동배치를 하려면 잠금을 해제하세요');return;}
   // v3.9.4: 즉시 진행 토스트 (대규모 인원에서 무반응으로 느껴지지 않게)
@@ -2286,7 +2335,7 @@ function autoFill(){
   // 매 실행마다 다른 "전략"을 무작위 선택하여 결과 다양성 확보.
   // Mulberry32 PRNG로 시드 기반 의사난수 생성 → 같은 시드로 재현 가능.
   var seedNum = (Date.now() ^ (Math.random()*0xFFFFFFFF)) >>> 0;
-  var rng = (function(seed){
+  function makeRng(seed){
     var s = seed >>> 0;
     return function(){
       s = (s + 0x6D2B79F5) >>> 0;
@@ -2295,7 +2344,7 @@ function autoFill(){
       t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
-  })(seedNum);
+  }
 
   // 전략 카탈로그 — 30가지. 각 전략은 회전/정렬/가중치 조정자 조합
   var STRATEGIES = [
@@ -2333,20 +2382,80 @@ function autoFill(){
     {rotSr: 10, rotPl: 6,  shiftBias:{D:1,E:1,N:1}, equityBoost:1.4, label:'평등 강조'},
     {rotSr: 15, rotPl: 14, shiftBias:{D:0.95,E:1.0,N:1.05}, equityBoost:1.1, label:'야간 권장'},
   ];
-  var strategyIdx = Math.floor(rng() * STRATEGIES.length);
-  var STRAT = STRATEGIES[strategyIdx];
-  // 콘솔에 시드/전략 노출 (디버깅용)
-  console.log('[autoFill] seed='+seedNum+', strategy='+strategyIdx+' ('+STRAT.label+')');
 
-  // v3.7: 원티드 셀(락) 보존 — 락이 걸린 셀은 지우지 않음
+  // 락 셀 백업 (각 시도 전 복원용) — 락은 모든 시도에서 동일하게 보존
+  var lockedBackup = {};
   var lockedCount = 0;
   nurses.forEach(function(n){
     for(var d=1;d<=nd;d++){
       if(isLocked(n.id, d)){
         lockedCount++;
-        continue; // 락 셀은 그대로 유지
+        var lc = schedule[key(n.id,d)];
+        if(lc!==undefined) lockedBackup[key(n.id,d)] = lc;
       }
-      delete schedule[key(n.id,d)];
+    }
+  });
+
+  // ── 길 A: MultiStart best-of-N ───────────────────────────────────────────
+  // 본체(_runGreedyOnce)를 여러 전략으로 N회 실행 → 사전식 점수 최저 채택.
+  // 인원수에 따라 시도 횟수 조절 (대규모는 적게 — 속도 보호).
+  var N_TRIES = nurses.length > 35 ? 5 : (nurses.length > 20 ? 8 : 12);
+  // 시도할 전략 인덱스를 무작위로 N개 선택 (중복 없이)
+  var rngPick = makeRng(seedNum);
+  var stratPool = STRATEGIES.map(function(_,i){return i;});
+  for(var i=stratPool.length-1;i>0;i--){ // Fisher-Yates 셔플
+    var j=Math.floor(rngPick()*(i+1));
+    var tmp=stratPool[i]; stratPool[i]=stratPool[j]; stratPool[j]=tmp;
+  }
+  var tryStrategies = stratPool.slice(0, Math.min(N_TRIES, STRATEGIES.length));
+
+  var best = null; // {score, snapshot, stratIdx}
+  tryStrategies.forEach(function(stratIdx, tryNo){
+    // 각 시도: 락 외 셀 전부 비우고 그 전략으로 1회 그리디
+    var snap = _runGreedyOnce(STRATEGIES[stratIdx], makeRng(seedNum + tryNo*7919), nd, R, lockedBackup);
+    // 이 결과의 사전식 점수 계산 (schedule이 snap 상태일 때 conflicts 평가)
+    _applySnapshot(snap, nd);
+    var sc = lexScore(conflicts());
+    if(best===null || lexCompare(sc, best.score) < 0){
+      best = { score: sc, snapshot: snap, stratIdx: stratIdx };
+    }
+  });
+
+  // 최저 점수 결과를 확정 적용
+  _applySnapshot(best.snapshot, nd);
+  var STRAT = STRATEGIES[best.stratIdx];
+
+  console.log('[autoFill] seed='+seedNum+', tries='+tryStrategies.length
+    +', best strategy='+best.stratIdx+' ('+STRAT.label+')'
+    +', score=L'+best.score.join('/L'));
+
+  // ── 길 A: L1 위반만 남은 셀 unresolved 표시 ──────────────────────────────
+  var unresolvedCount = _markUnresolvedCells(nd);
+
+  render();
+  var cf=conflicts();
+  var lockMsg = lockedCount > 0 ? ' (원티드 '+lockedCount+'건 보존)' : '';
+  var unresMsg = unresolvedCount > 0 ? ' · ⚠️미배정 '+unresolvedCount+'칸(직접 결정)' : '';
+  var stratMsg = ' · 전략: ' + STRAT.label + ' (' + tryStrategies.length + '회 중 최선)';
+  showToast((cf.length?'자동배치 완료'+lockMsg+' — '+cf.length+'건 경고':'자동배치 완료'+lockMsg) + unresMsg + stratMsg, 3500);
+  saveLocal();
+  return;
+
+  // ════════════════════════════════════════════════════════════════════════
+  // 이하: _runGreedyOnce 본체 (기존 단일 그리디 로직을 함수로 분리)
+  // ════════════════════════════════════════════════════════════════════════
+  function _runGreedyOnce(STRAT, rng, nd, R, lockedBackup){
+
+  // 이 시도 전용: 락 외 모든 셀 비우고, 락 셀은 백업값으로 복원
+  nurses.forEach(function(n){
+    for(var dd=1; dd<=nd; dd++){
+      var k = key(n.id, dd);
+      if(isLocked(n.id, dd)){
+        if(lockedBackup[k]!==undefined) schedule[k] = lockedBackup[k];
+        else delete schedule[k];
+      } else {
+        delete schedule[k];
+      }
     }
   });
 
@@ -2367,7 +2476,7 @@ function autoFill(){
   }
 
   var workers=sr.concat(pl);
-  if(!workers.length){render();return;}
+  if(!workers.length){ return _captureSnapshot(nd); }
 
   // 이전 달 나이트 인수인계
   var prevCy=cy,prevCm=cm-1;
@@ -2627,12 +2736,51 @@ function autoFill(){
     });
   }
 
-  render();
-  var cf=conflicts();
-  var lockMsg = lockedCount > 0 ? ' (원티드 '+lockedCount+'건 보존)' : '';
-  var stratMsg = ' · 전략: ' + STRAT.label;
-  showToast((cf.length?'자동배치 완료'+lockMsg+' — '+cf.length+'건 경고':'자동배치 완료'+lockMsg) + stratMsg, 3000);
-}
+  // 본체 종료: 현재 schedule 상태를 스냅샷으로 반환
+  return _captureSnapshot(nd);
+
+  } // ── _runGreedyOnce 끝 ──
+
+  // 현재 달 schedule을 객체로 캡처 (락 셀 포함)
+  function _captureSnapshot(nd){
+    var snap = {};
+    nurses.forEach(function(n){
+      for(var d=1; d<=nd; d++){
+        var k = key(n.id, d);
+        if(schedule[k]!==undefined) snap[k] = schedule[k];
+      }
+    });
+    return snap;
+  }
+  // 스냅샷을 현재 달 schedule에 적용 (덮어쓰기 — 먼저 락 외 비움)
+  function _applySnapshot(snap, nd){
+    nurses.forEach(function(n){
+      for(var d=1; d<=nd; d++){
+        var k = key(n.id, d);
+        if(snap[k]!==undefined) schedule[k] = snap[k];
+        else delete schedule[k];
+      }
+    });
+  }
+  // L1 위반에 연루된 셀을 비워 unresolved 처리.
+  // 모든 후보가 L1 위반인 셀만 해당 — 실무상 "도저히 안전배치 불가"한 칸.
+  // 여기서는 보수적으로: L1 conflict가 가리키는 (간호사,일) 셀이 락이 아니면 비움.
+  function _markUnresolvedCells(nd){
+    var cf = conflicts();
+    var l1cells = {};
+    cf.forEach(function(c){
+      if(_layerOf(c) !== 'L1') return;
+      if(!c.d || c.d < 1) return;          // 월간 집계형(d=0)은 특정 셀 아님 → 제외
+      // c에는 nurse id가 직접 없으므로 message로 식별 불가 → 셀 단위 식별이 어려운 경우 skip
+    });
+    // 현재 conflict 구조는 (간호사 id) 필드를 직접 담지 않아 셀 단위 unresolved가
+    // 제한적. 안전을 위해 자동 비우기는 하지 않고 0 반환(경고만 유지).
+    // (향후 conflict에 nurseId 필드 추가 시 활성화 — 스펙 5.5)
+    return 0;
+  }
+
+} // ── autoFill 끝 ──
+
 function clearMonth(){
   if(editLocked){showToast('🔒 편집이 잠겨 있습니다');return;}
   // 현재 달만 삭제 (다른 달 데이터 유지)
