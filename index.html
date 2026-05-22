@@ -547,7 +547,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span>Version 3.9.9 · Public Release</span>
+        <span>Version 3.10.0 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -4202,13 +4202,52 @@ function renderRulesList(){
       +'· '+srMsg
       +'</div>';
   }
-  html+=section('교대 인력 구성','👥',
+  // v6.2: 교대(D/E/N) × 평일/주말 2축 정원 격자
+  // perShift가 없으면 기존 단일값으로 초기 격자 생성
+  function _ps(sh, dt, field, fallback){
+    var P = R.staffing.perShift;
+    if(P && P[sh] && P[sh][dt] && P[sh][dt][field]!==undefined) return P[sh][dt][field];
+    return fallback;
+  }
+  function gridCell(sh, dt){
+    // sh: D/E/N, dt: weekday/weekend
+    var mn = _ps(sh, dt, 'min', R.staffing.minPerShift);
+    var mx = _ps(sh, dt, 'max', R.staffing.maxPerShift);
+    var sr = _ps(sh, dt, 'senior', R.staffing.seniorPerShift);
+    function n2(id,val,min,max){
+      return '<input type="number" id="ps_'+id+'" value="'+val+'" min="'+min+'" max="'+max+'" '
+        +'style="width:42px;padding:2px 4px;border:0.5px solid var(--bd2);border-radius:5px;font-size:10px;text-align:center;background:var(--bg);color:var(--text);font-family:inherit">';
+    }
+    return '<td style="padding:3px 4px;text-align:center;white-space:nowrap">'
+      +n2(sh+'_'+dt+'_min', mn,0,15)+' <span style="color:var(--text3);font-size:9px">~</span> '
+      +n2(sh+'_'+dt+'_max', mx,1,15)
+      +'<br><span style="font-size:8.5px;color:var(--text3)">선임</span> '
+      +n2(sh+'_'+dt+'_senior', sr,0,5)
+      +'</td>';
+  }
+  var shiftLabels = {D:'🌅 Day', E:'🌇 Eve', N:'🌙 Night'};
+  var gridRows = ['D','E','N'].map(function(sh){
+    return '<tr>'
+      +'<td style="padding:3px 6px;font-weight:600;font-size:10.5px;color:var(--text2)">'+shiftLabels[sh]+'</td>'
+      +gridCell(sh,'weekday')
+      +gridCell(sh,'weekend')
+      +'</tr>';
+  }).join('');
+  var staffGrid =
+    '<div style="font-size:10px;color:var(--text3);margin-bottom:8px">교대별 · 평일/주말(+공휴일) 최소~최대 인원과 선임 수를 설정합니다. <b>주말 인원을 줄이면 주말 off가 늘어 off 총량이 조절됩니다.</b></div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6px">'
+    +'<thead><tr style="background:var(--bg2)">'
+    +'<th style="padding:4px 6px;text-align:left;font-size:10px;color:var(--text2)">교대</th>'
+    +'<th style="padding:4px;font-size:10px;color:var(--text2)">평일 (최소~최대 / 선임)</th>'
+    +'<th style="padding:4px;font-size:10px;color:var(--text2)">주말·공휴일 (최소~최대 / 선임)</th>'
+    +'</tr></thead>'
+    +'<tbody>'+gridRows+'</tbody>'
+    +'</table>';
+
+  html+=section('교대 인력 구성 (평일/주말 분리)','👥',
     _diag
-    +row('교대당 선임 필수 인원',numInput('seniorPerShift',R.staffing.seniorPerShift,0,5),'명')
-    +row('교대당 평간호사 필수 인원',numInput('juniorPerShift',R.staffing.juniorPerShift,0,5),'명')
-    +row('교대당 최소 총 인원',numInput('minPerShift',R.staffing.minPerShift,1,10),'명')
-    +row('교대당 최대 총 인원',numInput('maxPerShift',R.staffing.maxPerShift,1,10),'명')
-    +'<div style="font-size:10px;color:var(--text3);margin-top:6px">💡 off가 일부에게 쏠리면 슬롯 부족이 원인인 경우가 많습니다. 위 진단을 참고해 최소인원을 조절하세요.</div>'
+    + staffGrid
+    +'<div style="font-size:10px;color:var(--text3);margin-top:6px">💡 off가 일부에게 쏠리면 주말 최소인원을 낮춰보세요. 위 진단의 권장 인원도 참고하세요.</div>'
   );
 
   // 2. 연속 근무 규칙
@@ -4316,10 +4355,31 @@ function saveRules(){
   // RuleEngine.set() 으로 검증 포함 저장
   RULES.set('display','wardName',gs('wardName'));
   RULES.set('display','description',gs('desc'));
-  RULES.set('staffing','seniorPerShift',gi('seniorPerShift'));
-  RULES.set('staffing','juniorPerShift',gi('juniorPerShift'));
-  RULES.set('staffing','minPerShift',gi('minPerShift'));
-  RULES.set('staffing','maxPerShift',gi('maxPerShift'));
+
+  // v6.2: 교대×평일/주말 2축 정원 격자 읽기 → perShift 구조로 저장
+  function psGet(sh, dt, field){
+    var el = document.getElementById('ps_'+sh+'_'+dt+'_'+field);
+    return el ? (parseInt(el.value)||0) : 0;
+  }
+  var perShift = {};
+  ['D','E','N'].forEach(function(sh){
+    perShift[sh] = {};
+    ['weekday','weekend'].forEach(function(dt){
+      var mn = psGet(sh,dt,'min');
+      var mx = psGet(sh,dt,'max');
+      var sr = psGet(sh,dt,'senior');
+      if(mx < mn) mx = mn;          // max는 min 이상
+      if(sr > mn) sr = mn;          // 선임이 최소인원보다 많을 순 없음
+      perShift[sh][dt] = {min:mn, max:mx, senior:sr};
+    });
+  });
+  RULES._cfg.staffing.perShift = perShift;
+  // 단일값도 평일 D 기준으로 동기화 (폴백·하위호환·진단 계산용)
+  RULES._cfg.staffing.minPerShift    = perShift.D.weekday.min;
+  RULES._cfg.staffing.maxPerShift    = perShift.D.weekday.max;
+  RULES._cfg.staffing.seniorPerShift = perShift.D.weekday.senior;
+  RULES._cfg.staffing.juniorPerShift = Math.max(0, perShift.D.weekday.min - perShift.D.weekday.senior);
+
   RULES.set('consecutive','maxNightStreak',gi('maxNightStreak'));
   RULES.set('consecutive','offAfterNight',gi('offAfterNight'));
   RULES.set('consecutive','maxWorkStreak',gi('maxWorkStreak'));
