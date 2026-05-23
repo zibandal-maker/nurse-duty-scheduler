@@ -71,7 +71,7 @@ table{border-collapse:collapse;table-layout:fixed;width:auto;min-width:100%;}
 
 thead th{font-size:10px;font-weight:500;color:var(--text2);text-align:center;padding:2px 1px 3px;border-bottom:0.5px solid var(--bd2);position:sticky;top:0;background:var(--bg);z-index:2;overflow:hidden;}
 thead th.nc{text-align:left;padding-left:8px;width:150px;min-width:150px;font-size:11px;position:sticky;left:0;z-index:3;background:var(--bg);}
-thead th.dh{width:28px;min-width:28px;max-width:28px;}
+thead th.dh{width:28px;min-width:28px;max-width:28px;vertical-align:top;}
 
 th.sat{background:rgba(24,95,165,.09)!important;color:#185FA5!important;}
 th.sun{background:rgba(200,50,50,.09)!important;color:#A32D2D!important;}
@@ -102,7 +102,7 @@ tbody td.ncell:hover{background:var(--bg2);}
 .partner-chip:hover{opacity:.75;}
 /* 경고 셀 */
 td.pref-warn{background:rgba(255,160,0,.08)!important;}
-td.pref-warn .sb:not(.empty){box-shadow:inset 0 0 0 1.5px #E67E22;}
+td.pref-warn .sb:not(.empty){box-shadow:inset 0 0 0 1.5px #E67E22, 0 0 0 1px rgba(230,126,34,.3);}
 
 /* 간호사 사진 */
 .navatar{width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid var(--bd2);}
@@ -134,7 +134,9 @@ thead th.tdh{background:rgba(100,210,80,.25)!important;color:#2a7a10!important;f
 .sb:hover{opacity:.72;}
 .sb.empty{background:var(--bg3);opacity:.18;cursor:default;}
 .sb.empty:hover{opacity:.18;}
-td.wcell{border-left:2px solid #E24B4A !important;}
+/* 충돌 경고 셀: 좌측 라인 대신 시프트바 테두리+글로우로 표시 (연속 셀에서도 또렷이 구분) */
+td.wcell{background:rgba(226,75,74,.06)!important;}
+td.wcell .sb:not(.empty){box-shadow:inset 0 0 0 1.5px #E24B4A, 0 0 0 1px rgba(226,75,74,.35);}
 
 /* v3.7: 원티드 락 셀 표시 */
 td.wanted-locked{background:rgba(240,115,32,.07) !important;position:relative;}
@@ -459,6 +461,25 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
     </div>
     <div class="mscroll" id="rulesList" style="max-height:calc(85vh - 140px)"></div>
+    <div style="flex-shrink:0;margin-top:10px;padding:9px 11px;background:#FFF7ED;border:0.5px solid #F0C088;border-radius:7px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
+        <input type="checkbox" id="expAltCell" onchange="toggleAltCell(this.checked)" style="width:15px;height:15px;cursor:pointer">
+        <span><b>🧪 실험: 대안 셀 추천</b> <span style="font-size:10px;color:#A35200">베타</span></span>
+      </label>
+      <div style="font-size:10.5px;color:#7A4A10;margin-top:4px;line-height:1.5;padding-left:23px">
+        경고 셀을 <b><span id="altKeyLabel">Alt</span>+클릭</b>하면 "이 셀을 무엇으로 바꾸면 위반이 줄어드는지" 추천 패널이 뜹니다.
+        대안을 누르면 즉시 적용되고, ↩ 한 번에 되돌릴 수 있습니다. 끄면 계산이 전혀 돌지 않습니다.
+      </div>
+      <div id="altKeyRow" style="display:none;align-items:center;gap:7px;margin-top:7px;padding-left:23px;font-size:11px">
+        <span style="color:#7A4A10">실행 키:</span>
+        <select id="altKeySel" onchange="setAltKey(this.value)" style="font:inherit;font-size:11px;padding:3px 6px;border:0.5px solid var(--bd2);border-radius:5px;background:var(--bg);color:var(--text)">
+          <option value="alt">Alt (Option) + 클릭</option>
+          <option value="ctrl">Ctrl + 클릭</option>
+          <option value="shift">Shift + 클릭</option>
+          <option value="meta">Cmd/Win + 클릭</option>
+        </select>
+      </div>
+    </div>
     <div style="display:flex;gap:6px;margin-top:10px;flex-shrink:0">
       <button class="btn" style="background:#1a1a18;color:#fff;border-color:#1a1a18;flex:1;font-weight:600" onclick="saveRules()">💾 저장 적용</button>
       <button class="mclose" style="margin:0;flex:1" onclick="closeOv('rulesOv')">닫기</button>
@@ -592,7 +613,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span>Version 3.11.2 · Public Release</span>
+        <span id="aboutVersion">Version 3.12.0 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -724,6 +745,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
         <a href="#help-wanted"    onclick="scrollHelp('help-wanted'); return false;"    class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">📌 원티드 듀티</a>
         <a href="#help-off"       onclick="scrollHelp('help-off'); return false;"       class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">🛌 off 이월·경조</a>
         <a href="#help-warn"      onclick="scrollHelp('help-warn'); return false;"      class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">⚠️ 충돌 검사</a>
+        <a href="#help-altcell"   onclick="scrollHelp('help-altcell'); return false;"   class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">🧪 대안 셀 추천</a>
         <a href="#help-save"      onclick="scrollHelp('help-save'); return false;"      class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">💾 저장/백업</a>
         <a href="#help-export"    onclick="scrollHelp('help-export'); return false;"    class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">📤 Excel/인쇄</a>
         <a href="#help-pwa"       onclick="scrollHelp('help-pwa'); return false;"       class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">📱 홈 화면 추가</a>
@@ -942,22 +964,44 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
         <!-- ── 충돌 검사 ── -->
         <section id="help-warn" style="margin-top:24px">
           <h2 style="font-size:16px;font-weight:700;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--bd2)">⚠️ 충돌 검사</h2>
-          <p>모든 규칙 위반은 실시간으로 검출되어 표시됩니다.</p>
-          <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">표시 위치 3곳</h3>
+          <p>모든 규칙 위반은 실시간으로 검출되어 표시됩니다. 경고는 강제가 아닌 안내입니다 — 수동 배정은 언제든 가능합니다.</p>
+          <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">표시 방식</h3>
           <ul style="padding-left:18px;margin:0">
-            <li><b>캘린더 셀</b>: 빨간 좌측 테두리</li>
-            <li><b>통계 행</b>: 워닝 수 클릭으로 상세</li>
-            <li><b>⚠️ 경고 모달</b>: 상단 워닝 버튼으로 종류별 그룹화 보기 (위험/주의 순)</li>
+            <li><b>경고 셀</b>: 시프트 박스에 <span style="color:#E24B4A;font-weight:700">빨간 테두리+글로우</span> (선호위반은 주황) — 연속 셀에서도 각 셀이 또렷하게 구분</li>
+            <li><b>호버 툴팁</b>: 경고 셀에 마우스를 올리면 "⚠ 무엇이 문제인지 + 어떻게 고칠지" 권고 표시</li>
+            <li><b>통계 행</b>: 위반 수 클릭으로 상세 목록</li>
+            <li><b>⚠️ 경고 모달</b>: 상단 워닝 버튼 → 종류별 그룹화 보기 (위험/주의 순)</li>
           </ul>
-          <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">위반 카테고리</h3>
+          <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">위반 카테고리 (심각도 순)</h3>
           <ul style="padding-left:18px;margin:0;font-size:12px">
-            <li>👥 인력 구성 (선임·평간호사 수 부족)</li>
-            <li>🚫 금지 패턴 (NOD 등)</li>
-            <li>🌙 야간 규칙 (연속·월 한도)</li>
-            <li>👤 속성 규칙 (임산부 야간 등)</li>
-            <li>🔄 연속 근무</li>
-            <li>🔰 신규간호사 보호</li>
+            <li>🛡️ <b>L1 안전</b>: 임산부 야간, 야간면제자 야간, 신규 단독 야간, 4연속 야간</li>
+            <li>🚫 <b>L2 패턴</b>: NOD·ND·ED 등 금지 패턴, 야간 연속·월 한도 초과</li>
+            <li>👥 <b>L3 공정</b>: 인력 구성 미달, off 적정 배분</li>
+            <li>💛 <b>L4 선호</b>: 시프트 기피, 기피 동료 동반</li>
           </ul>
+          <p style="margin-top:8px;font-size:11.5px;color:var(--text3)">자동배치도 이 우선순위(L1→L4) 순으로 위반을 회피합니다.</p>
+        </section>
+
+        <!-- ── 🧪 대안 셀 추천 ── -->
+        <section id="help-altcell" style="margin-top:24px">
+          <h2 style="font-size:16px;font-weight:700;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--bd2)">🧪 대안 셀 추천 <span style="font-size:11px;font-weight:400;color:#A35200;background:#FFF7ED;padding:1px 7px;border-radius:8px;margin-left:4px">베타 · 실험기능</span></h2>
+          <p>경고 셀을 <b>Alt+클릭</b>하면 "이 셀을 어떻게 바꾸면 위반이 줄어드는지" 대안을 최대 3개 추천합니다. 대안을 클릭하면 즉시 적용되고, 한 번에 되돌릴 수 있습니다.</p>
+          <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">활성화 방법</h3>
+          <p style="margin:0"><b>⚙️ 규칙설정</b> → 하단 <b>🧪 실험: 대안 셀 추천</b> 토글 켜기. 기본값은 꺼짐 — 끄면 계산이 전혀 돌지 않아 성능에 영향이 없습니다.</p>
+          <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">실행 키 변경</h3>
+          <p style="margin:0">토글을 켜면 바로 아래 "실행 키" 드롭다운이 나타납니다. <b>Alt(기본) / Ctrl / Shift / Cmd·Win</b> 중 선택 — 설정은 자동 저장됩니다.</p>
+          <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">추천 패널 보는 법</h3>
+          <ul style="padding-left:18px;margin:0">
+            <li>대안마다 적용 후 위반 상태(안전·패턴·공정·선호 건수)가 미리 표시</li>
+            <li><span style="background:#E6F1FB;color:#0C447C;padding:1px 5px;border-radius:8px;font-size:10px">앞뒤 동시</span> 태그 = 인접 날짜도 함께 조정하는 대안 (연쇄 위반 해결)</li>
+            <li><span style="color:#A35200;font-weight:600">⚠ 범위 밖 새 위반 N건</span> = 이 조정이 ±1일 바깥에 파급을 일으킴</li>
+            <li><b>↩ 직전 적용 되돌리기</b>로 한 번에 원복</li>
+          </ul>
+          <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">대원칙 — 인력 최소인원 보호</h3>
+          <p style="margin:0">추천 대안은 어느 시프트든 <b>최소 인원을 새로 무너뜨리는 경우 자동 제외</b>됩니다. 대안을 클릭했을 때 스태핑 기준이 깨질 일이 없습니다.</p>
+          <div style="margin-top:10px;padding:8px 10px;background:#FFF7ED;border-radius:5px;font-size:11.5px;color:#7A4A10">
+            💡 <b>실험기능</b>이므로 예상치 못한 동작이 있을 수 있습니다. 규칙설정에서 토글을 끄면 기능이 완전히 비활성화됩니다.
+          </div>
         </section>
 
         <!-- ── 저장/백업 ── -->
@@ -1134,7 +1178,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
 </div>
 <!-- off 현황판 끝 -->
 
-<!-- 이월잔고 직접 수정 모달 ─────────────────────────────────────────── -->
+<!-- v3.12: 이월잔고 직접 수정 모달 ─────────────────────────────────────── -->
 <div class="ov" id="offEditOv">
   <div class="modal" style="max-width:480px;width:92vw">
     <div class="mhdr"><span><span class="emoji">🛠️</span> 이월잔고 직접 수정</span></div>
@@ -1159,6 +1203,16 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
 
 <div class="toast" id="toast"></div>
 
+<!-- 🧪 실험: 대안 셀 추천 패널 (Alt+클릭으로 호출, 고정 표시) ───────────── -->
+<div id="altPanel" style="display:none;position:fixed;z-index:9999;width:280px;max-width:92vw;background:var(--bg);border:1px solid var(--bd2);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.22);font-size:12px;overflow:hidden">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#FFF7ED;border-bottom:0.5px solid #F0C088">
+    <span style="font-weight:700;font-size:11.5px">🧪 <span id="altPanelTitle">대안 추천</span></span>
+    <span onclick="closeAltPanel()" style="cursor:pointer;color:var(--text3);font-size:15px;line-height:1;padding:0 2px">✕</span>
+  </div>
+  <div id="altPanelBody" style="padding:10px 12px;max-height:50vh;overflow:auto"></div>
+</div>
+<!-- 대안 추천 패널 끝 -->
+
 <script>
 const SHIFTS=[
   {code:'D',label:'Day',  color:'#1E6DBF',bg:'#d4e8fb',desc:'07:00-15:00'},
@@ -1172,8 +1226,18 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.11.2';
+const APP_VERSION = '3.12.0';
 const UPDATE_NOTES = [
+  { v:'3.12.0', date:'2026-05', items:[
+    '🎨 캘린더 헤더 상단정렬 — 공휴일·이벤트가 붙어도 날짜 라인 고정',
+    '🔴 배치경고 표시 개선 — 좌측 레드라인 → 시프트 테두리 하이라이트+글로우 (연속 셀도 또렷하게 구분)',
+    '💬 경고 셀 호버 권고 툴팁 — 위반 유형별 "어떻게 고칠지" 행동 지침 표시',
+    '🧪 실험: 대안 셀 추천 — Alt+클릭으로 위반 감소 대안 최대 3개 추천·즉시 적용·되돌리기',
+    '📐 대안 계산: ±1 윈도우 동시 조정 — 인접 셀 연쇄 위반까지 커버, 파급 표시 포함',
+    '🛡️ 대안 추천에 인력 최소인원 하드 제약 — 스태핑 기준 무너지는 대안 자동 제거',
+    '🛌 off 이월잔고 직접 수정 패널 — 잘못 누적된 잔고 수동 정정 / 전원 초기화',
+    '🔒 월마감 멱등화 — 같은 달 반복 마감해도 이월이 중복 누적되지 않음',
+  ]},
   { v:'3.11.2', date:'2026-05', items:[
     '🖱️ 시프트 선택 후 캘린더를 <b>드래그</b>하면 여러 날 한 번에 배정',
     '🎯 시프트 칩 선택 표시를 선명한 주황 테두리로 강화 (크기도 정상화)',
@@ -1182,7 +1246,6 @@ const UPDATE_NOTES = [
     '⚙️ 규칙설정 교대 격자 가독성 개선 + 사용 가이드 폰트 확대',
   ]},
   { v:'3.11.1', date:'2026-05', items:[
-    '🎉 업데이트 노트 — 새 버전이 나오면 이 안내가 자동으로 표시됩니다',
     '🛌 off 이월 시스템 — 못 쓴 off가 다음 달로 누적 (off 현황판 + 월마감)',
     '💗 경조/공가 휴무 코드 \'B\' 추가 (off 정량과 별개)',
     '📌 원티드 카드 선택 — 시프트(D/E/N/O/V/B) 지정 후 셀 클릭으로 고정',
@@ -1800,6 +1863,22 @@ class RuleEngine {
         nightDedicatedNightOnly:true,  // 야간전담은 야간만 (낮 근무 금지)
         preceptorWithPreceptee: true,  // 프리셉터-프리셉티 같은 듀티 우선
         exemptNoNight:          true,  // 야간 면제자 야간 배치 금지
+
+        // ── TODO (향후 구현 예정) ─────────────────────────────────────────
+        // 임산부 12주 이내 단축근무 지원 (근로기준법 제74조의2)
+        //
+        // 구현 고려사항:
+        //   1. 간호사 카드에 '임신 주수' 또는 '단축근무 기간' 입력 필드 추가
+        //   2. 12주 이내 판별 로직: pregnancyWeek <= 12 (또는 dueDate 기반 역산)
+        //   3. 단축근무 시 일일 근무시간 단축 (6시간) → 현재 시프트(D/E/N) 구조와 충돌
+        //      → 별도 'DS'(단축 Day) 코드 도입 또는 시프트 시간 속성 확장 필요
+        //   4. 자동배치에서 12주 이내 임산부는 단축 시프트만 배정
+        //   5. 충돌 검사에서 12주 이내 임산부에 일반 시프트 배정 시 경고 (L1)
+        //   6. 리포트/Excel에 단축근무 구분 표시
+        //
+        // 복잡도: 중~상. 시프트 모델 확장이 핵심 — 다른 기능과 연동 범위가 넓어
+        //         별도 설계 문서 작성 후 진행 권장.
+        // ────────────────────────────────────────────────────────────────
       },
 
       // ── v3.8: 원티드 듀티 한도 설정 ──────────────────────────────────────
@@ -2198,6 +2277,7 @@ function offBase(){
   return c;
 }
 
+// v3.12(fix): 월마감 멱등화 — 같은 달 반복 마감 시 이월 중복 누적 차단
 // v6.4: 월마감 — 이번 달 미소진 off를 각자 offBalance에 누적(이월)
 // 데이터 층 로직(룰 아님). 같은 달 중복 실행 방지를 위해 마감 기록을 남긴다.
 function closeMonthOffBalance(){
@@ -2664,7 +2744,383 @@ function conflicts(){
   return list;
 }
 
-// ── 길 A: 사전식 4계층 점수 (스펙 v6.1 차용) ─────────────────────────────
+// v3.12: 위반 유형별 권고문 (호버 툴팁용) ────────────────────────────────────
+// 각 위반에 "어떻게 풀지" 행동 지침을 매핑. 셀에 마우스를 올리면 표시된다.
+var ADVICE_OF_TYPE = {
+  // 패턴 — 휴식/역방향
+  'pattern-ND':  '이 데이를 Off로 바꾸거나, 전날 야간을 하루 앞당겨 사이에 Off를 두세요.',
+  'pattern-NE':  '이 이브닝을 데이/Off로 바꾸거나, 전날 야간을 조정하세요.',
+  'pattern-ED':  '이 데이를 이브닝/Off로 바꾸세요. (이브→데이는 휴식 부족)',
+  'pattern-NOD': '이 데이를 이브닝이나 Off로 바꾸세요. (N→Off→D는 가장 위험)',
+  'pattern-EOD': '이 데이를 이브닝/Off로 바꾸거나, 가운데 Off를 하루 더 늘리세요.',
+  'pattern-NON': '가운데 Off를 2일로 늘려 야간 사이 회복시간을 확보하세요.',
+  'pattern-NOE': '이 이브닝을 Off로 두거나 야간 블록을 재배치하세요.',
+  'pattern-NNNN':'야간 4연속입니다. 중간에 Off를 끼워 3연속 이하로 끊으세요.',
+  // 연속/직전환
+  'consec-night':'야간 연속 한도 초과. 이 셀 또는 직전 야간 하나를 Off로 바꾸세요.',
+  'consec-noOffAfterNight':'야간 블록 직후이므로 이 셀을 Off로 두세요.',
+  'consec-nightToEve':'야간 다음날 이브닝은 피하세요. Off나 다음날 데이로 조정.',
+  'consec-work': '연속 근무 한도 초과. 이 셀을 Off로 바꿔 휴식일을 넣으세요.',
+  'night-consecMax':'야간 연속 상한 초과. 야간 블록을 나눠 Off를 삽입하세요.',
+  'night-monthMax':'이번 달 야간 횟수 초과. 일부 야간을 다른 인원에게 분산하세요.',
+  'night-backward':'역방향 전환(늦은→이른 시프트)입니다. 순방향(D→E→N)으로 정렬하세요.',
+  // 신규간호사 보호
+  'newNurse-noNightAlone':'신규는 야간 단독 불가. 같은 야간에 선임을 1명 배치하세요.',
+  'newNurse-consecNight':'신규 야간 연속 제한. 이 야간을 Off나 주간으로 바꾸세요.',
+  'newNurse-noSenior':'이 시프트에 선임이 없습니다. 선임 1명을 함께 배치하세요.',
+  'newNurse-nightLimit':'신규 월 야간 한도 초과. 야간 일부를 선임에게 옮기세요.',
+  // 속성(모성보호 등)
+  'attr-pregnantNight':'임산부 야간 금지. 이 셀을 데이/이브닝/Off로 바꾸세요.',
+  'attr-pregnantSame':'임산부가 같은 시프트에 몰렸습니다. 한 명을 다른 시프트로.',
+  'attr-nightOnly':'야간전담자는 D/E 불가. 이 셀을 야간이나 Off로 바꾸세요.',
+  'attr-exempt': '야간면제 대상입니다. 이 셀을 데이/이브닝/Off로 바꾸세요.',
+  'attr-preceptorPair':'프리셉터와 같은 듀티로 맞추면 멘토링이 가능합니다.',
+  // 인력/공정성
+  'staffing':    '해당 시프트 인력 구성이 기준 미달/초과입니다. 인원수를 조정하세요.',
+  'off-balance': 'off 배분이 한쪽으로 치우쳤습니다. 인원 간 off를 고르게 분산하세요.',
+  // 선호
+  'shift-avoid': '본인이 기피하는 시프트입니다. 가능하면 다른 시프트로 바꾸세요.',
+  'partner-avoid':'기피 동료와 같은 듀티입니다. 한 명을 다른 시프트로 옮기세요.',
+};
+function adviceFor(type){ return ADVICE_OF_TYPE[type] || '규칙설정에서 해당 항목을 확인하세요.'; }
+
+// ════════════════════════════════════════════════════════════════════════
+// v3.12: 🧪 실험기능: 대안 셀 추천 (Alt+클릭 → 패널 → 즉시 적용 → 되돌리기)
+// 토글 OFF면 어떤 함수도 호출되지 않아 성능 영향 0.
+// ════════════════════════════════════════════════════════════════════════
+var ALT_ENABLED = false;       // 토글 상태
+var ALT_KEY = 'alt';           // 'alt'|'ctrl'|'shift'|'meta'
+var _altUndo = null;           // 되돌리기용 직전 상태 {nid,d,prev, partner?,partnerPrev?}
+
+function _loadAltSettings(){
+  try{
+    ALT_ENABLED = localStorage.getItem('dv6_exp_altcell')==='1';
+    ALT_KEY = localStorage.getItem('dv6_exp_altkey') || 'alt';
+  }catch(e){}
+}
+function _altKeyLabel(k){ return {alt:'Alt',ctrl:'Ctrl',shift:'Shift',meta:'Cmd/Win'}[k]||'Alt'; }
+function _altKeyMatch(e){
+  // 선택된 키만 눌리고 다른 modifier는 안 눌린 상태(오작동 방지)
+  if(ALT_KEY==='alt')   return e.altKey   && !e.ctrlKey && !e.shiftKey && !e.metaKey;
+  if(ALT_KEY==='ctrl')  return e.ctrlKey  && !e.altKey  && !e.shiftKey && !e.metaKey;
+  if(ALT_KEY==='shift') return e.shiftKey && !e.altKey  && !e.ctrlKey  && !e.metaKey;
+  if(ALT_KEY==='meta')  return e.metaKey  && !e.altKey  && !e.ctrlKey  && !e.shiftKey;
+  return false;
+}
+
+function toggleAltCell(on){
+  ALT_ENABLED = !!on;
+  try{ localStorage.setItem('dv6_exp_altcell', on?'1':'0'); }catch(e){}
+  var row=document.getElementById('altKeyRow'); if(row) row.style.display = on?'flex':'none';
+  if(!on) closeAltPanel();
+}
+function setAltKey(k){
+  ALT_KEY = k;
+  try{ localStorage.setItem('dv6_exp_altkey', k); }catch(e){}
+  var lbl=document.getElementById('altKeyLabel'); if(lbl) lbl.textContent=_altKeyLabel(k);
+}
+// 규칙설정 모달 열릴 때 토글 UI를 현재 상태로 동기화
+function syncAltUI(){
+  var cb=document.getElementById('expAltCell'); if(cb) cb.checked=ALT_ENABLED;
+  var sel=document.getElementById('altKeySel'); if(sel) sel.value=ALT_KEY;
+  var row=document.getElementById('altKeyRow'); if(row) row.style.display=ALT_ENABLED?'flex':'none';
+  var lbl=document.getElementById('altKeyLabel'); if(lbl) lbl.textContent=_altKeyLabel(ALT_KEY);
+}
+
+// 현재 배치의 위반 점수 — 앱의 lexScore(사전식 4계층)를 그대로 사용
+function _curLex(){ return lexScore(conflicts()); }
+function _lexText(t){ return '안전 '+t[0]+' · 패턴 '+t[1]+' · 공정 '+t[2]+' · 선호 '+t[3]; }
+
+// 단일 셀 대안 계산: 코드 교체 + 같은 날 맞교환을 실제 재평가
+//   schedule을 임시 변경 → conflicts() 재실행 → 반드시 원복
+// 변경 후보를 {cells:[{nid,d,code}]} 형태로 일반화. code===''는 비우기(Off).
+// 윈도우 바깥(±2일째)에 생기는 새 위반 수를 함께 계산해 '파급'으로 표시한다.
+function _applyTemp(cells){           // 임시 적용 → 복원함수 반환
+  var undo=[];
+  cells.forEach(function(c){
+    var k=key(c.nid,c.d);
+    undo.push({k:k, prev:schedule[k]});
+    if(c.code==='' || c.code==='O'){ if(c.code==='O') schedule[k]='O'; else delete schedule[k]; }
+    else schedule[k]=c.code;
+  });
+  return function(){ undo.forEach(function(u){ if(u.prev===undefined) delete schedule[u.k]; else schedule[u.k]=u.prev; }); };
+}
+// 특정 (nid, 일범위)에 걸린 위반 수 — 파급 측정용
+function _violCountIn(nid, dLo, dHi){
+  return conflicts().filter(function(ci){
+    // 사람 매칭: ci에 nid가 없으면 msg에 이름이 들어가므로 이름으로 보조 매칭
+    var n=nurses.find(function(x){return x.id===nid;});
+    var hit = (ci.nid===nid) || (ci.msg && n && ci.msg.indexOf(n.name)===0);
+    return hit && ci.d>=dLo && ci.d<=dHi;
+  }).length;
+}
+
+function computeAltCell(nid, d){
+  var nd=ndays(cy,cm);
+  var k0 = key(nid,d);
+  var orig = schedule[k0] || '';
+  var base = _curLex();
+  var WORK = ['D','E','N','O'];
+  var cands = [];
+  var locked0 = isLocked(nid,d);
+
+  // 파급 측정 기준: 윈도우 바깥 = 이 셀 기준 ±2~±3일 (윈도우는 ±1)
+  function rippleOf(){
+    // 윈도우(±1) 바깥, 가까운 영역(±3)에 생긴 새 위반 측정
+    var outLo1=Math.max(1,d-3), outHi1=d-2, outLo2=d+2, outHi2=Math.min(nd,d+3);
+    var c=0;
+    if(outHi1>=outLo1) c+=_violCountIn(nid,outLo1,outHi1);
+    if(outHi2>=outLo2) c+=_violCountIn(nid,outLo2,outHi2);
+    return c;
+  }
+  var baseRipple = rippleOf();
+
+  // ── (1) 단일 셀: 코드 교체 ──────────────────────────────────────────────
+  if(!locked0) WORK.forEach(function(c){
+    if(c===orig) return;
+    var cells=[{nid:nid,d:d,code:c}];
+    var undo=_applyTemp(cells);
+    var t=_curLex(), rip=rippleOf()-baseRipple;
+    cands.push({kind:'replace', cells:cells, label:'이 셀 → '+_codeLabel(c), lex:t, cmp:lexCompare(t,base), ripple:rip});
+    undo();
+  });
+
+  // ── (2) 단일 셀: 같은 날 맞교환 ─────────────────────────────────────────
+  if(!locked0) nurses.forEach(function(o){
+    if(o.id===nid || o.role==='수간호사') return;
+    if(isLocked(o.id,d)) return;
+    var oc = schedule[key(o.id,d)] || '';
+    if(oc===orig) return;
+    var cells=[{nid:nid,d:d,code:oc||'O'},{nid:o.id,d:d,code:orig||'O'}];
+    var undo=_applyTemp(cells);
+    var t=_curLex(), rip=rippleOf()-baseRipple;
+    cands.push({kind:'swap', cells:cells, label:o.name+'와 맞교환 ('+_codeLabel(orig)+'↔'+_codeLabel(oc)+')', lex:t, cmp:lexCompare(t,base), ripple:rip});
+    undo();
+  });
+
+  // ── (3) ±1 윈도우 동시 변경 (B) ─────────────────────────────────────────
+  // 앞/뒤 셀은 "유지 또는 Off" 2가지, 가운데는 4가지. 가지치기로 16조합 이하.
+  var dp=d-1, dn=d+1;
+  var hasP = dp>=1 && !isLocked(nid,dp);
+  var hasN = dn<=nd && !isLocked(nid,dn);
+  if(!locked0 && (hasP||hasN)){
+    var pOrig = hasP ? (schedule[key(nid,dp)]||'') : null;
+    var nOrig = hasN ? (schedule[key(nid,dn)]||'') : null;
+    var pOpts = hasP ? [pOrig, 'O'] : [null];   // 유지 / Off
+    var nOpts = hasN ? [nOrig, 'O'] : [null];
+    WORK.forEach(function(mid){
+      pOpts.forEach(function(pc){
+        nOpts.forEach(function(nc){
+          // 단일 셀과 동일한 조합(앞뒤 둘 다 유지)은 (1)에서 이미 다룸 → 스킵
+          var pSame = !hasP || pc===pOrig;
+          var nSame = !hasN || nc===nOrig;
+          if(pSame && nSame) return;
+          // 앞뒤를 원래 Off였는데 또 Off로 두는 무의미 케이스 스킵
+          if(hasP && pc==='O' && pOrig==='') {} // 허용(빈→명시 O는 동일 취급이나 무해)
+          var cells=[{nid:nid,d:d,code:mid}];
+          if(hasP && !pSame) cells.push({nid:nid,d:dp,code:pc});
+          if(hasN && !nSame) cells.push({nid:nid,d:dn,code:nc});
+          var undo=_applyTemp(cells);
+          var t=_curLex(), rip=rippleOf()-baseRipple;
+          // 라벨: 무엇을 함께 바꾸는지
+          var parts=['이 셀→'+_codeLabel(mid)];
+          if(hasP && !pSame) parts.push(dp+'일→'+_codeLabel(pc));
+          if(hasN && !nSame) parts.push(dn+'일→'+_codeLabel(nc));
+          cands.push({kind:'window', cells:cells, label:'함께 조정: '+parts.join(', '), lex:t, cmp:lexCompare(t,base), ripple:rip});
+          undo();
+        });
+      });
+    });
+  }
+
+  // 개선되는 것만. 정렬: 위반점수 우선, 같으면 파급 적은 것, 같으면 변경 셀 적은 것
+  var better = cands.filter(function(c){return c.cmp<0;}).sort(function(a,b){
+    var lc=lexCompare(a.lex,b.lex); if(lc!==0) return lc;
+    if(a.ripple!==b.ripple) return a.ripple-b.ripple;
+    return a.cells.length-b.cells.length;
+  });
+
+  // ── 하드 제약: staffing ──────────────────────────────────────────────────
+  // 대원칙: 변경 후 어느 날짜·시프트든 '기존에 없던 새 인력 미달'이 생기면 제거.
+  //   (기존에 이미 있던 staffing 위반은 유지돼도 허용 — 우리가 만든 게 아니니까.)
+  // 기준: 변경 전 날짜별 시프트별 staffing 상태를 미리 찍고, 변경 후와 비교.
+  function _staffingState(){
+    // {d: {D:{ok,sr,pl}, E:{...}, N:{...}}} — 변경된 날짜만 계산하면 되지만 전체 캐시
+    var st={};
+    var nd2=ndays(cy,cm);
+    var srAll=nurses.filter(function(n){return n.role==='주임'||n.role==='차지';});
+    var plAll=nurses.filter(function(n){return n.role==='평간호사'||n.role==='신규간호사';});
+    for(var dd=1;dd<=nd2;dd++){
+      st[dd]={};
+      ['D','E','N'].forEach(function(sh){
+        var sc=srAll.filter(function(n){return schedule[key(n.id,dd)]===sh;}).length;
+        var pc=plAll.filter(function(n){return schedule[key(n.id,dd)]===sh;}).length;
+        st[dd][sh]={ok:RULES.checkStaffing(sc,pc,sh,isWH(cy,cm,dd)).ok, sr:sc, pl:pc};
+      });
+    }
+    return st;
+  }
+  var baseStaff = _staffingState();
+
+  function _passesStaffing(cells){
+    // 변경 날짜 목록
+    var days={};
+    cells.forEach(function(cell){ days[cell.d]=true; });
+    var srAll=nurses.filter(function(n){return n.role==='주임'||n.role==='차지';});
+    var plAll=nurses.filter(function(n){return n.role==='평간호사'||n.role==='신규간호사';});
+    return Object.keys(days).every(function(dStr){
+      var dd=parseInt(dStr), wh=isWH(cy,cm,dd);
+      return ['D','E','N'].every(function(sh){
+        var sc=srAll.filter(function(n){return schedule[key(n.id,dd)]===sh;}).length;
+        var pc=plAll.filter(function(n){return schedule[key(n.id,dd)]===sh;}).length;
+        var chk=RULES.checkStaffing(sc,pc,sh,wh);
+        // 원래 ok였는데 변경 후 미달이 된 경우만 차단
+        // (원래부터 미달이면 이미 문제 있던 상태 — 우리가 악화시키지 않으면 허용)
+        var wasOk = baseStaff[dd] && baseStaff[dd][sh] && baseStaff[dd][sh].ok;
+        if(wasOk && !chk.ok) return false;  // 새 staffing 위반 발생 → 차단
+        // 원래 미달이더라도 더 나빠지면(인원이 줄면) 차단
+        if(!chk.ok && baseStaff[dd] && baseStaff[dd][sh]){
+          var prev=baseStaff[dd][sh];
+          if(sc<prev.sr || pc<prev.pl) return false;
+        }
+        return true;
+      });
+    });
+  }
+
+  // staffing 필터: 임시 적용 → 체크 → 원복
+  var staffOk = better.filter(function(c){
+    var undo=_applyTemp(c.cells);
+    var ok=_passesStaffing(c.cells);
+    undo();
+    return ok;
+  });
+
+  // 동일 효과 중복 제거: 실제로 값이 바뀌는 셀만 추려 시그니처 생성
+  var seen={}, dedup=[];
+  staffOk.forEach(function(c){
+    var sig=c.cells.filter(function(cell){
+      var cur=schedule[key(cell.nid,cell.d)]||'';
+      var nv=(cell.code===''?'':cell.code==='O'?'O':cell.code);
+      // 빈셀과 'O'를 동일 취급(둘 다 휴무)
+      var curN=(cur===''?'O':cur), nvN=(nv===''?'O':nv);
+      return curN!==nvN;
+    }).map(function(cell){return cell.nid+':'+cell.d+':'+(cell.code||'O');}).sort().join('|');
+    if(sig==='') return;            // 실질 변경 없음
+    if(seen[sig]) return; seen[sig]=true;
+    dedup.push(c);
+  });
+  return {orig:orig, base:base, better:dedup};
+}
+
+function _codeLabel(c){ return {D:'Day',E:'Eve',N:'Night',O:'Off',V:'연차',B:'경조','':'Off'}[c]||c; }
+
+// 추천 패널 열기
+function openAltPanel(nid, d, anchorEl){
+  var n = nurses.find(function(x){return x.id===nid;});
+  if(!n) return;
+  var r = computeAltCell(nid, d);
+  var origLbl=_codeLabel(r.orig);
+
+  var html='<div style="font-size:11px;color:var(--text3);margin-bottom:8px">'
+    +n.name+' · '+d+'일 (현재 '+origLbl+') · 현재 위반 '+_lexText(r.base)+'</div>';
+
+  if(r.better.length){
+    r.better.slice(0,3).forEach(function(c,i){
+      var rippleTxt = c.ripple>0
+        ? '<span style="color:#A35200;font-weight:600"> · ⚠ 범위 밖 새 위반 '+c.ripple+'건</span>'
+        : (c.ripple<0 ? '<span style="color:#1A8C62"> · 인접 위반도 ▼'+(-c.ripple)+'</span>' : '');
+      var winTag = c.kind==='window' ? '<span style="font-size:9px;background:#E6F1FB;color:#0C447C;padding:1px 5px;border-radius:8px;margin-left:4px">앞뒤 동시</span>' : '';
+      html+='<div onclick="applyAlt('+nid+','+d+','+i+')" '
+        +'style="border:0.5px solid var(--bd2);border-radius:7px;padding:8px 10px;margin-bottom:6px;cursor:pointer;background:var(--bg2)" '
+        +'onmouseover="this.style.background=\'#EAF3DE\'" onmouseout="this.style.background=\'var(--bg2)\'">'
+        +'<div style="font-weight:600;color:#27500A">'+c.label+winTag+'</div>'
+        +'<div style="font-size:10px;color:var(--text3);margin-top:2px">적용 후: '+_lexText(c.lex)+rippleTxt+'</div>'
+        +'</div>';
+    });
+    html+='<div style="font-size:10px;color:var(--text3);margin-top:2px">대안을 클릭하면 즉시 적용됩니다. ⚠는 ±1 범위 밖에 새 위반이 생긴다는 뜻.</div>';
+  } else {
+    html+='<div style="border:0.5px solid #F7C1C1;background:#FCEBEB;border-radius:7px;padding:9px 11px;color:#791F1F">'
+      +'이 셀만 바꾸거나 같은 날 맞교환해서는 <b>위반이 줄지 않습니다.</b>'
+      +'<div style="font-size:10px;color:#A35200;margin-top:3px">다른 날짜와 연동 조정이 필요할 수 있습니다.</div></div>';
+  }
+  // 되돌리기 (직전 적용이 있을 때만)
+  if(_altUndo){
+    html+='<button onclick="undoAlt()" style="width:100%;margin-top:6px;padding:7px;border:0.5px solid var(--bd2);border-radius:6px;background:var(--bg);cursor:pointer;font:inherit;font-size:11px;font-weight:600">↩ 직전 적용 되돌리기</button>';
+  }
+
+  // 캐시: 패널이 어떤 셀을 위한 것인지 기록(적용 시 재계산에 사용)
+  _altPanelCtx = {nid:nid, d:d, better:r.better};
+  document.getElementById('altPanelTitle').textContent = n.name+' '+d+'일 대안';
+  document.getElementById('altPanelBody').innerHTML = html;
+  var p=document.getElementById('altPanel');
+  p.style.display='block';
+  _positionAltPanel(p, anchorEl);
+}
+var _altPanelCtx = null;
+
+function _positionAltPanel(p, anchorEl){
+  // 셀 근처에, 화면 밖으로 안 나가게
+  var pad=8, pw=p.offsetWidth||280, ph=p.offsetHeight||200;
+  var x=120, y=120;
+  if(anchorEl){
+    var r=anchorEl.getBoundingClientRect();
+    x = r.right + pad;
+    y = r.top;
+    if(x + pw > window.innerWidth - pad)  x = Math.max(pad, r.left - pw - pad);
+    if(y + ph > window.innerHeight - pad) y = Math.max(pad, window.innerHeight - ph - pad);
+  }
+  p.style.left=x+'px'; p.style.top=y+'px';
+}
+function closeAltPanel(){ var p=document.getElementById('altPanel'); if(p) p.style.display='none'; _altPanelCtx=null; }
+
+// 대안 적용 — cells 배열을 그대로 반영, 직전 상태를 _altUndo에 저장
+function applyAlt(nid, d, idx){
+  if(editLocked){ showToast('🔒 편집이 잠겨 있습니다'); return; }
+  if(!_altPanelCtx || _altPanelCtx.nid!==nid || _altPanelCtx.d!==d) return;
+  var c=_altPanelCtx.better[idx]; if(!c || !c.cells) return;
+  var before=lexScore(conflicts());
+
+  var undoCells=[];
+  c.cells.forEach(function(cell){
+    var k=key(cell.nid, cell.d);
+    undoCells.push({k:k, prev:schedule[k]});
+    if(cell.code==='' ) delete schedule[k];
+    else if(cell.code==='O') schedule[k]='O';
+    else schedule[k]=cell.code;
+  });
+  _altUndo = {cells:undoCells};
+
+  saveLocal();
+  render();
+  var after=lexScore(conflicts());
+  var dd=(before[0]+before[1]+before[2]+before[3]) - (after[0]+after[1]+after[2]+after[3]);
+  showToast('✓ 적용 — 위반 '+(dd>0?('▼'+dd+'건'):(dd<0?('▲'+(-dd)+'건'):'변화 없음'))+' · ↩로 되돌리기', 2800);
+  closeAltPanel();
+}
+
+function undoAlt(){
+  if(!_altUndo){ return; }
+  _altUndo.cells.forEach(function(c){
+    if(c.prev===undefined) delete schedule[c.k];
+    else schedule[c.k]=c.prev;
+  });
+  _altUndo=null;
+  saveLocal();
+  render();
+  showToast('↩ 되돌렸습니다', 1800);
+  closeAltPanel();
+}
+
+// 패널 바깥 클릭/ESC로 닫기
+document.addEventListener('mousedown', function(e){
+  var p=document.getElementById('altPanel');
+  if(p && p.style.display==='block' && !p.contains(e.target)){
+    // 셀을 다시 alt+클릭한 경우는 onCell에서 새로 열므로 여기선 닫기만
+    if(!(e.target.closest && e.target.closest('td.dc'))) closeAltPanel();
+  }
+});
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeAltPanel(); });
 // conflict type → 페널티 계층 매핑. 스펙의 L1~L4를 현재 conflict type에 대응.
 // L1 = 법적/안전 절대선, L2 = 강한 권고, L3 = 공정성, L4 = 선호
 var LAYER_OF_TYPE = {
@@ -3457,6 +3913,16 @@ function render(){
   var _pvList=checkPrefViolations();
   var pvSet={};_pvList.forEach(function(vi){pvSet[vi.nid+'-'+vi.d]=true;});
 
+  // 셀별 위반 인덱스 (호버 권고 툴팁용). nid가 있는 건 사람단위, 없는 건 d-sh 단위.
+  //   conflicts()는 nid를 항상 주진 않으므로, msg의 이름으로 매칭하기보다
+  //   d/sh 기반으로 모으고 셀 렌더 시 코드와 대조한다.
+  var cellWarn={};  // key: "d-CODE" → [{type,msg}]
+  cf.forEach(function(ci){
+    if(ci.d>0 && ci.sh){ (cellWarn[ci.d+'-'+ci.sh]=cellWarn[ci.d+'-'+ci.sh]||[]).push(ci); }
+  });
+  var prefWarn={};  // key: "nid-d" → [{type,msg}]
+  _pvList.forEach(function(vi){ (prefWarn[vi.nid+'-'+vi.d]=prefWarn[vi.nid+'-'+vi.d]||[]).push(vi); });
+
   // colgroup for fixed widths
   var cg='<colgroup><col style="width:150px;min-width:150px">';
   for(var d=1;d<=nd;d++) cg+='<col style="width:28px;min-width:28px;max-width:28px">';
@@ -3524,7 +3990,31 @@ function render(){
           lockTip = ' title="📌 원티드 락"';
         }
       }
-      tb+='<td class="'+dcls+tCls2+wc+pw+lockCls+'" id="c-'+n.id+'-'+d+'"'+lockTip+' onclick="onCell('+n.id+','+d+')" onmousedown="onCellDown(event,'+n.id+','+d+')" onmouseenter="onCellEnter('+n.id+','+d+')" ondragover="onDov(event,'+n.id+','+d+')" ondrop="onDrop(event,'+n.id+','+d+')" ondragleave="onDlv(event)">';
+      // 호버 권고 툴팁: 이 셀 코드에 걸린 충돌 + 선호위반을 모아 권고문 구성
+      var warnTip='';
+      var wlist=[];
+      if(code && cellWarn[d+'-'+code]) wlist=wlist.concat(cellWarn[d+'-'+code]);
+      if(prefWarn[n.id+'-'+d]) wlist=wlist.concat(prefWarn[n.id+'-'+d]);
+      if(wlist.length){
+        var seen={};
+        var tipLines=wlist.filter(function(ci){
+          if(seen[ci.type]) return false; seen[ci.type]=true; return true;
+        }).map(function(ci){
+          return '⚠ '+(ci.msg||ci.type)+'\n→ '+adviceFor(ci.type);
+        });
+        warnTip=tipLines.join('\n\n').replace(/"/g,"'");
+      }
+      // 락 툴팁과 합치기 (경고가 있으면 경고 우선, 락 정보는 뒤에)
+      var titleAttr='';
+      if(warnTip && lockTip){
+        var lockTxt=lockTip.replace(/^ title="/,'').replace(/"$/,'');
+        titleAttr=' title="'+warnTip+'\n\n'+lockTxt+'"';
+      } else if(warnTip){
+        titleAttr=' title="'+warnTip+'"';
+      } else {
+        titleAttr=lockTip;
+      }
+      tb+='<td class="'+dcls+tCls2+wc+pw+lockCls+'" id="c-'+n.id+'-'+d+'"'+titleAttr+' onclick="onCell('+n.id+','+d+')" onmousedown="onCellDown(event,'+n.id+','+d+')" onmouseenter="onCellEnter('+n.id+','+d+')" ondragover="onDov(event,'+n.id+','+d+')" ondrop="onDrop(event,'+n.id+','+d+')" ondragleave="onDlv(event)">';
       if(s){
         tb+='<div class="sb" style="background:'+s.color+';color:#fff" draggable="true" ondragstart="onDst(event,'+n.id+','+d+',\''+code+'\')">'+code+'</div>';
       } else {
@@ -3715,6 +4205,15 @@ function onNameClick(nid){
 var _dragSel = null; // {nid, startD, lastD, moved}
 var _justDragged = false; // 드래그 완료 직후 onclick 무시용
 function onCellDown(e, nid, d){
+  // 🧪 대안 추천: 토글 ON + 지정 키 조합이면 패널 열고 기존 동작 차단
+  if(ALT_ENABLED && _altKeyMatch(e)){
+    e.preventDefault();
+    var cell=document.getElementById('c-'+nid+'-'+d);
+    // 경고 셀이 아니어도 열되, 안내 차이만 둠(계산은 동일)
+    openAltPanel(nid, d, cell);
+    _altSuppressClick = true;   // 직후 onclick(코드순환) 무시
+    return;
+  }
   if(editLocked) return;
   if(wantedMode) return;       // 원티드 모드는 단일 클릭 동작 유지
   if(!selShift) return;        // 시프트 미선택 시 드래그 안 함 (클릭=모달 동작 보존)
@@ -3723,6 +4222,7 @@ function onCellDown(e, nid, d){
   // 텍스트 선택 방지
   e.preventDefault();
 }
+var _altSuppressClick = false;
 function onCellEnter(nid, d){
   if(!_dragSel) return;
   if(nid !== _dragSel.nid) return;  // 같은 간호사 행만
@@ -3771,6 +4271,7 @@ document.addEventListener('mouseup', function(){
 });
 
 function onCell(nid,d){
+  if(_altSuppressClick){ _altSuppressClick=false; return; }  // 🧪 대안 패널 호출 직후 클릭 무시
   if(editLocked){showToast('🔒 편집이 잠겨 있습니다');return;}
   if(_justDragged){ _justDragged=false; return; }  // v3.11: 드래그 완료 직후 클릭 무시
   // v3.7+v3.11: 원티드 모드 — 선택된 시프트 코드를 셀에 배정하며 락
@@ -3915,6 +4416,9 @@ document.querySelectorAll('.ov').forEach(function(ov){
 function renderUpdateNote(){
   var box = document.getElementById('updateNoteBox');
   if(!box) return;
+  // About 모달의 버전 표시도 APP_VERSION으로 자동 갱신 (하드코딩 중복 방지)
+  var vspan = document.getElementById('aboutVersion');
+  if(vspan) vspan.textContent = 'Version '+APP_VERSION+' · Public Release';
   var latest = UPDATE_NOTES[0];
   var html = '<div style="font-weight:800;font-size:12px;color:#C2185B;margin-bottom:5px">'
     +'<span class="emoji">🎉</span> 업데이트 v'+latest.v+' <span style="font-weight:400;color:var(--text3);font-size:10px">'+latest.date+'</span></div>'
@@ -4599,6 +5103,7 @@ function applyLockState(){
 function openRules(){
   document.getElementById('rulesWardName').textContent='— '+(RULES.display.wardName||'병동명 미설정');
   renderRulesList();
+  syncAltUI();
   document.getElementById('rulesOv').classList.add('open');
 }
 
@@ -5914,7 +6419,7 @@ window.addEventListener('beforeunload', function(){ saveLocal(true); });
 
 // ── 앱 시작 ───────────────────────────────────────────────────────────
 // 단일병동 안정화: 시작 시 대시보드 자동 진입 제거
-loadLocal();loadRules();loadSavedHolidays();updateRollbackBtn();render();
+loadLocal();loadRules();loadSavedHolidays();updateRollbackBtn();_loadAltSettings();render();
 
 // v3.9.2: 첫 방문/주기적 환영 모달 표시 (DOM 준비 후 약간의 지연)
 setTimeout(showWelcomeIfNeeded, 300);
