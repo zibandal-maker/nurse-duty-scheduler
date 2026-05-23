@@ -55,7 +55,10 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:13px;
 .shint{font-size:10px;color:var(--text3);white-space:nowrap;flex-shrink:0;padding-left:6px;border-left:0.5px solid var(--bd2);margin-left:2px;}
 
 .body-wrap{display:flex;flex:1;min-height:0;}
-.cal-area{flex:1;overflow:auto;padding:10px 14px 16px;}
+.cal-area{flex:1;overflow:hidden;padding:10px 14px 16px;display:flex;flex-direction:column;min-height:0;}
+/* v3.14.5: 표만 가로·세로 스크롤 — 통계/경고는 휩쓸리지 않게 분리 (겹침 버그 수정) */
+.tbl-scroll{flex:1;overflow:auto;min-height:0;}
+.stat-warn-wrap, .cal-area > .off-info{flex-shrink:0;}
 
 .btn{background:none;border:0.5px solid var(--bd2);border-radius:var(--r);padding:4px 9px;cursor:pointer;font-size:11px;color:var(--text);display:inline-flex;align-items:center;gap:3px;white-space:nowrap;font-family:inherit;}
 .btn:hover{background:var(--bg2);}
@@ -142,6 +145,7 @@ td.pref-warn .sb:not(.empty){box-shadow:inset 0 0 0 1.5px #E67E22, 0 0 0 1px rgb
 .p-warn{background:#FAEEDA;color:#633806;}
 .p-out{background:#FCEBEB;color:#791F1F;}
 .p-blue{background:#E6F1FB;color:#0C447C;}
+.p-work{background:#EDEAF7;color:#534AB7;}
 
 tbody td.dc{width:28px;min-width:28px;max-width:28px;padding:1px;vertical-align:middle;}
 td.dc.sat{background:rgba(24,95,165,.07);}
@@ -195,12 +199,46 @@ td.drag-preview{outline:2px solid #FF6B00!important;outline-offset:-2px;backgrou
 #helpContent a{color:#1E6DBF;}
 #helpContent table{border:0.5px solid var(--bd);border-radius:4px;overflow:hidden;}
 
+/* v3.14.4: 통계+경고 반응형 래퍼 — 넓으면 가로(통계|경고), 좁으면 세로 */
+.stat-warn-wrap{display:flex;gap:10px;margin-top:8px;align-items:flex-start;}
+.stat-warn-wrap .stats-row{flex:1 1 52%;margin-top:0;align-content:flex-start;}
+.stat-warn-wrap .warn-summary{flex:1 1 48%;margin-top:0;}
+@media(max-width:900px){ .stat-warn-wrap{flex-direction:column;} }
 .stats-row{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;}
 .stc{background:var(--bg2);border-radius:var(--r);padding:5px 8px;flex:1;min-width:48px;cursor:pointer;}
 .stc:hover{background:var(--bg3);}
 .stc.warnc{background:#FCEBEB;}.stc.warnc:hover{background:#F7C1C1;}
+/* v3.14.4: D/E/N(진행바 카드)은 크게, Off·연차·완료율(stc-narrow)은 글자만 들어갈 만큼 작게 */
+.stc-narrow{flex:0 1 70px;min-width:62px;padding:5px 6px;}
+.stc-narrow .stn{font-size:13px;}
+.stc-narrow .stl{font-size:8.5px;}
 .stn{font-size:15px;font-weight:700;}
 .stl{font-size:9px;color:var(--text3);margin-top:1px;}
+/* v3.14: 통계 카드 목표 진행 바 */
+.stc-bar{display:flex;flex-direction:column;flex:2 1 110px;}
+.stbar{height:4px;border-radius:3px;background:var(--bd2);margin-top:5px;overflow:hidden;}
+.stbar-fill{height:100%;border-radius:3px;transition:width .3s;}
+.sttgt{font-size:8.5px;color:var(--text3);margin-top:3px;}
+/* v3.14: 경고 요약 박스 (GPT 목업 차용) */
+.warn-summary{margin-top:8px;border-radius:9px;padding:9px 12px;font-size:11px;}
+.warn-summary.ok{background:#EAF6EF;border:0.5px solid #B6E2CD;color:#1F8A5E;display:flex;align-items:center;gap:7px;}
+.warn-summary.ok .ws-ico{font-size:13px;}
+.warn-summary.ok .ws-title{font-weight:600;}
+.warn-summary.has{background:#FDECEC;border:0.5px solid #F3C0C0;}
+.warn-summary .ws-head{display:flex;align-items:center;gap:7px;color:#A32D2D;margin-bottom:5px;}
+.warn-summary .ws-head .ws-ico{font-size:13px;}
+.warn-summary .ws-detail{margin-left:auto;font-size:10px;padding:2px 9px;border-radius:12px;border:0.5px solid #E29; border-color:#E2A1A1;background:#fff;color:#A32D2D;cursor:pointer;font-family:inherit;font-weight:600;}
+.warn-summary .ws-detail:hover{background:#F7C1C1;}
+.warn-summary .ws-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:3px 16px;}
+@media(max-width:1100px){ .warn-summary .ws-list{grid-template-columns:1fr;} }
+.warn-summary .ws-list li{display:flex;align-items:center;gap:7px;}
+.warn-summary .ws-msg{color:var(--text);flex:1;}
+.warn-summary .ws-tag{font-size:9px;font-weight:700;padding:1px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0;}
+.warn-summary .ws-r{background:#FCEBEB;color:#A32D2D;}
+.warn-summary .ws-a{background:#FAEEDA;color:#854F0B;}
+.warn-summary .ws-p{background:#EEEDFE;color:#4A2E8A;}
+.warn-summary .ws-g{background:var(--bg3);color:var(--text2);}
+.warn-summary .ws-more{margin-top:5px;font-size:10px;color:#A32D2D;cursor:pointer;text-decoration:underline;}
 .off-info{font-size:10px;color:var(--text2);margin-top:5px;padding:4px 8px;background:var(--bg2);border-radius:var(--r);}
 
 .side-panel{width:320px;flex-shrink:0;border-right:0.5px solid var(--bd2);overflow-y:auto;display:none;background:var(--bg);order:-1;}
@@ -317,10 +355,11 @@ td.drag-preview{outline:2px solid #FF6B00!important;outline-offset:-2px;backgrou
 .emoji{font-size:1.15em;line-height:1;display:inline-block;vertical-align:-0.05em;}
 
 @media print{
-  .topbar,.shiftbar,.side-panel,.stats-row,.off-info{display:none!important;}
+  .topbar,.shiftbar,.side-panel,.stats-row,.off-info,.stat-warn-wrap{display:none!important;}
   body{height:auto;overflow:visible;}
   .body-wrap{overflow:visible;}
-  .cal-area{overflow:visible;padding:0;}
+  .cal-area{overflow:visible;padding:0;display:block;}
+  .tbl-scroll{overflow:visible;}
   .sb{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   td.dc.sat,td.dc.sun{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 }
@@ -446,8 +485,11 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
         <button onclick="dismissDemoBanner()" style="padding:3px 10px;background:var(--bg);border:0.5px solid #F0C690;border-radius:4px;font-size:10px;color:#791F1F;cursor:pointer;font-family:inherit;flex-shrink:0">알겠습니다 ✓</button>
       </div>
     </div>
-    <table id="tbl"><thead id="tHead"></thead><tbody id="tBody"></tbody><tfoot id="tFoot"></tfoot></table>
-    <div class="stats-row" id="sRow"></div>
+    <div class="tbl-scroll"><table id="tbl"><thead id="tHead"></thead><tbody id="tBody"></tbody><tfoot id="tFoot"></tfoot></table></div>
+    <div class="stat-warn-wrap">
+      <div class="stats-row" id="sRow"></div>
+      <div class="warn-summary" id="warnSummary"></div>
+    </div>
     <div class="off-info" id="offInfo"></div>
   </div>
 
@@ -703,7 +745,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span id="aboutVersion">Version 3.14.2 · Public Release</span>
+        <span id="aboutVersion">Version 3.14.5 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -1327,7 +1369,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.14.2';
+const APP_VERSION = '3.14.5';
 const UPDATE_NOTES = [
   { v:'3.14.0', date:'2026-05', items:[
     '⌨️ 키보드 단축키 추가 — 방향키로 셀 이동, 1~6으로 D/E/N/O/V/경조 입력, Del 삭제',
@@ -4225,13 +4267,17 @@ function render(){
     var offPill=n.role!=='수간호사'?'<span class="pill '+oCls+'" title="'+balTip+'">Off '+oU+'/'+Qn+balStar+'</span>':'';
     var vacYear=cntVacYear(n.id, cy);
     var vacPill='<span class="pill '+vcCls+'" title="올해('+cy+'년) 사용 '+vacYear+'일 / 총 '+(n.vacTotal||0)+'일">연차 '+rv+'일</span>';
+    // v3.14: 이번 달 실제 근무일수 (D+E+N) pill — GPT 목업 차용
+    var workDays=0;
+    for(var _wd=1;_wd<=nd;_wd++){ var _s=schedule[key(n.id,_wd)]; if(_s==='D'||_s==='E'||_s==='N') workDays++; }
+    var workPill='<span class="pill p-work" title="이번 달 실제 근무일수 (D+E+N)">근무 '+workDays+'일</span>';
     // 생일 체크 (이번 달)
     var isBday=false;
     if(n.birthday){var bp=n.birthday.split('-');isBday=parseInt(bp[1])===cm+1;}
     var bdayIcon=isBday?' 🎂':'';
     tb+='<tr><td class="ncell" onclick="onNameClick('+n.id+')">'
       +'<div class="nl1">'+photoHTML(n,'sm')+'<span class="nn">'+n.name+bdayIcon+'</span><span class="nbadge" style="background:'+RBG[n.role]+';color:'+RCOL[n.role]+'">'+n.role+'</span>'+dutyAttrIcons(n)+'</div>'
-      +'<div class="nl2">'+offPill+vacPill+'</div>'
+      +'<div class="nl2">'+workPill+offPill+vacPill+'</div>'
       +'</td>';
     for(var d=1;d<=nd;d++){
       var w2=dow(cy,cm,d);var h2=isH(cy,cm,d);
@@ -4380,25 +4426,43 @@ function renderStats(cf, pvList){
   }});
   var tot=nurses.length*nd;
   var pct=tot?Math.round((tot-emp)/tot*100):0;
-  var wc=cf?cf.length:0;
+
+  // v3.14: 월 목표 인원 합계 (각 시프트 min × 그달 일수, 평일/주말 반영)
+  function monthTarget(sh){
+    var t=0;
+    for(var d=1;d<=nd;d++){
+      var st=RULES.staffingFor(sh, isWH(cy,cm,d));
+      if(st) t+=(st.min||0);
+    }
+    return t;
+  }
+  var tgtD=monthTarget('D'), tgtE=monthTarget('E'), tgtN=monthTarget('N');
+
+  // 목표 대비 진행 바가 있는 통계 카드
+  function statCard(label, val, color, code, tgt){
+    var bar='';
+    if(tgt){
+      var p=Math.min(100, Math.round(val/tgt*100));
+      var barCol = val>=tgt ? color : '#E2941C';  // 목표 미달이면 주황 경고색
+      bar='<div class="stbar"><div class="stbar-fill" style="width:'+p+'%;background:'+barCol+'"></div></div>'
+        +'<div class="sttgt">월 목표 '+tgt+'명</div>';
+    }
+    return '<div class="stc'+(tgt?' stc-bar':' stc-narrow')+'" onclick="showStat(\''+code+'\')">'
+      +'<div class="stl" style="color:'+color+'">'+label+'</div>'
+      +'<div class="stn" style="color:'+color+'">'+val+'<span style="font-size:11px;font-weight:600">명</span></div>'
+      +bar+'</div>';
+  }
   document.getElementById('sRow').innerHTML=
-    '<div class="stc" onclick="showStat(\'D\')"><div class="stn" style="color:var(--sh-d)">'+D+'</div><div class="stl">Day ▸</div></div>'
-    +'<div class="stc" onclick="showStat(\'E\')"><div class="stn" style="color:var(--sh-e)">'+E+'</div><div class="stl">Eve ▸</div></div>'
-    +'<div class="stc" onclick="showStat(\'N\')"><div class="stn" style="color:var(--sh-n)">'+N+'</div><div class="stl">Night ▸</div></div>'
-    +'<div class="stc" onclick="showStat(\'O\')"><div class="stn" style="color:var(--sh-o)">'+O+'</div><div class="stl">Off ▸</div></div>'
-    +'<div class="stc" onclick="showStat(\'V\')"><div class="stn" style="color:var(--orange)">'+V+'</div><div class="stl">연차(이달) ▸</div></div>'
-    +'<div class="stc"><div class="stn">'+pct+'%</div><div class="stl">완료율</div></div>'
-    +(function(){
-      var staffingCnt=cf.filter(function(ci){return ci.type==='staffing';}).length;
-      var consecCnt=cf.filter(function(ci){return ci.type&&ci.type.indexOf('consec')===0;}).length;
-      var nnCnt=cf.filter(function(ci){return ci.type&&ci.type.indexOf('newNurse')===0;}).length;
-      var html='';
-      if(staffingCnt) html+='<div class="stc warnc" onclick="showWarn()"><div class="stn" style="color:#791F1F">'+staffingCnt+'</div><div class="stl" style="color:#A32D2D">배치경고 ▸</div></div>';
-      if(consecCnt) html+='<div class="stc" style="background:#FAEEDA;border:0.5px solid #FAC775;cursor:pointer" onclick="showWarn()"><div class="stn" style="color:#633806">'+consecCnt+'</div><div class="stl" style="color:#633806">연속경고 ▸</div></div>';
-      if(nnCnt) html+='<div class="stc" style="background:#F0EDFE;border:0.5px solid #AFA9EC;cursor:pointer" onclick="showWarn()"><div class="stn" style="color:#4A2E8A">'+nnCnt+'</div><div class="stl" style="color:#4A2E8A">신규경고 ▸</div></div>';
-      return html;
-    })()
-    +(pvList.length?'<div class="stc" style="background:#FAEEDA;border:0.5px solid #FAC775;cursor:pointer" onclick="showPrefWarns()"><div class="stn" style="color:#633806">'+pvList.length+'</div><div class="stl" style="color:#8a5200">선호경고 ▸</div></div>':'');
+    statCard('Day', D, 'var(--sh-d)', 'D', tgtD)
+    +statCard('Eve', E, 'var(--sh-e)', 'E', tgtE)
+    +statCard('Night', N, 'var(--sh-n)', 'N', tgtN)
+    +statCard('Off', O, 'var(--sh-o)', 'O', 0)
+    +'<div class="stc stc-narrow" onclick="showStat(\'V\')"><div class="stl" style="color:var(--orange)">연차</div><div class="stn" style="color:var(--orange)">'+V+'<span style="font-size:11px;font-weight:600">명</span></div></div>'
+    +'<div class="stc stc-narrow"><div class="stl">완료율</div><div class="stn">'+pct+'%</div></div>';
+
+  // v3.14: 경고 요약 박스 — "누가·무엇이 문제인지" 항상 보이게 (GPT 목업 차용)
+  renderWarnSummary(cf, pvList);
+
   var sat=0,sun=0,hol=0;
   for(var d=1;d<=nd;d++){
     var w=dow(cy,cm,d);
@@ -4408,6 +4472,54 @@ function renderStats(cf, pvList){
   var updStr=lastUpd?(' | 공휴일 최종갱신: '+lastUpd.slice(0,10)):'';
   document.getElementById('offInfo').textContent='이번 달 Off 할당량: '+offQ()+'일 (토 '+sat+'일 + 일 '+sun+'일 + 공휴일(평일) '+hol+'일) | 수간호사 제외 전원 동일'+updStr;
 }
+
+// v3.14: 경고 요약 박스 — conflicts/선호위반을 자연어 상위 N건으로 요약 표시.
+//   기존엔 작은 카드(배치경고▸)를 눌러야 목록이 보였으나, 이제 무엇이 문제인지 항상 노출.
+function renderWarnSummary(cf, pvList){
+  var box=document.getElementById('warnSummary');
+  if(!box) return;
+  cf=cf||[]; pvList=pvList||[];
+  // v3.14: 경고 요약 박스는 "배치상의 문제"만. off-balance(d=0, 비-배치성)는 제외.
+  var cfShow=cf.filter(function(c){ return c.type!=='off-balance' && c.d>0; });
+  var total=cfShow.length+pvList.length;
+  if(total===0){
+    box.className='warn-summary ok';
+    box.innerHTML='<span class="ws-ico">✓</span><span class="ws-title">검토가 필요한 항목 없음 — 모든 규칙 충족</span>';
+    return;
+  }
+  box.className='warn-summary has';
+  // v3.14.4: 정렬·태그를 룰 점수 체계(lexScore의 _layerOf)와 일치시킴.
+  //   L1(법적·안전) > L2(강한 권고) > L3(공정성) > L4(선호) 순으로 가장 심각한 것부터.
+  var TIER_RANK={L1:0, L2:1, L3:2, L4:3};
+  var TIER_TAG={
+    L1:{txt:'위험', cls:'r'},    // 법적·안전 — 빨강
+    L2:{txt:'주의', cls:'a'},    // 강한 권고 — 주황
+    L3:{txt:'점검', cls:'p'},    // 공정성·인력 — 보라
+    L4:{txt:'선호', cls:'g'}     // 선호 — 회색
+  };
+  var items=[];
+  cfShow.forEach(function(c){
+    var L=_layerOf(c);
+    items.push({msg:c.msg||(c.d+'일 '+c.sh), tag:TIER_TAG[L]||TIER_TAG.L3, rank:TIER_RANK[L]!==undefined?TIER_RANK[L]:2, d:c.d||0});
+  });
+  pvList.forEach(function(v){
+    items.push({msg:v.msg||'선호 위반', tag:TIER_TAG.L4, rank:TIER_RANK.L4, d:v.d||0});
+  });
+  // 룰 점수(등급) 우선, 같으면 날짜순
+  items.sort(function(a,b){ return (a.rank-b.rank) || (a.d-b.d); });
+  var show=items.slice(0,8);   // 2열 × 4행 = 8건 노출
+  var more=total-show.length;
+  var rows=show.map(function(it){
+    return '<li><span class="ws-msg">'+_esc(it.msg)+'</span> <span class="ws-tag ws-'+it.tag.cls+'">'+it.tag.txt+'</span></li>';
+  }).join('');
+  box.innerHTML=
+    '<div class="ws-head"><span class="ws-ico">⚠️</span><b>검토가 필요한 항목 '+total+'건</b>'
+    +'<button class="ws-detail" onclick="showWarn()">상세보기 ▸</button></div>'
+    +'<ul class="ws-list">'+rows+'</ul>'
+    +(more>0?'<div class="ws-more" onclick="showWarn()">외 '+more+'건 더보기…</div>':'');
+}
+// HTML 이스케이프 (요약 메시지 안전 출력)
+function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function showWarn(){
   var cf=conflicts();
