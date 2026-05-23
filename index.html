@@ -57,7 +57,14 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:13px;
 .body-wrap{display:flex;flex:1;min-height:0;}
 .cal-area{flex:1;overflow:hidden;padding:10px 14px 16px;display:flex;flex-direction:column;min-height:0;}
 /* v3.14.5: 표만 가로·세로 스크롤 — 통계/경고는 휩쓸리지 않게 분리 (겹침 버그 수정) */
-.tbl-scroll{flex:1;overflow:auto;min-height:0;}
+/* v3.14.8: flex:1(공간 다 먹음) → flex:0 1 auto(내용만큼, 넘치면 스크롤). 표 짧으면 통계행이 바로 아래 붙음. */
+.tbl-scroll{flex:0 1 auto;overflow:auto;min-height:0;}
+/* v3.14.7: 통계 행(tfoot)을 본체 스크롤 밖 별도 테이블로 분리 — 세로 스크롤에 안 잘리고 항상 하단 고정.
+   가로 스크롤은 JS(syncFootScroll)로 본체와 동기화. 컬럼 너비는 본체와 동일 규칙. */
+.tbl-foot-scroll{flex-shrink:0;overflow-x:hidden;overflow-y:hidden;border-top:1.5px solid var(--bd2);}
+#tblFoot{border-collapse:collapse;table-layout:fixed;width:auto;min-width:100%;}
+#tblFoot td{border:0.5px solid var(--bd);text-align:center;font-size:10px;font-weight:700;padding:2px 0;background:var(--bg);width:28px;min-width:28px;max-width:28px;}
+#tblFoot td.dsl{width:150px;min-width:150px;max-width:150px;text-align:right;padding-right:8px;position:sticky;left:0;z-index:1;background:var(--bg);}
 .stat-warn-wrap, .cal-area > .off-info{flex-shrink:0;}
 
 .btn{background:none;border:0.5px solid var(--bd2);border-radius:var(--r);padding:4px 9px;cursor:pointer;font-size:11px;color:var(--text);display:inline-flex;align-items:center;gap:3px;white-space:nowrap;font-family:inherit;}
@@ -161,10 +168,10 @@ thead th.tdh{background:rgba(100,210,80,.25)!important;color:#2a7a10!important;f
 .sb.empty{background:var(--bg3);opacity:.16;cursor:default;box-shadow:none;}
 .sb.empty:hover{opacity:.16;transform:none;}
 /* v3.13: 하단 날짜별 통계 행 (dutymate 스타일) */
-tfoot#tFoot td{text-align:center;font-size:10px;font-weight:700;padding:2px 0;border-top:0.5px solid var(--bd);}
-tfoot#tFoot td.dsl{text-align:right;padding-right:8px;font-size:10px;font-weight:700;}
+tfoot#tFoot td{text-align:center;font-size:10px;font-weight:700;padding:2px 0;border-top:0.5px solid var(--bd);background:var(--bg);}
+tfoot#tFoot td.dsl{text-align:right;padding-right:8px;font-size:10px;font-weight:700;position:sticky;left:0;z-index:1;background:var(--bg);}
 tfoot#tFoot tr.dsTotal td{border-top:1.5px solid var(--bd2);font-weight:800;}
-tfoot#tFoot td.understaff{color:#C0392B;background:rgba(226,75,74,.10);}
+tfoot#tFoot td.understaff{color:#C0392B;background:#FBE4E4;}
 tfoot#tFoot td.dsD{color:#1F8A5E;} tfoot#tFoot td.dsE{color:#C4456A;} tfoot#tFoot td.dsN{color:#6248BD;} tfoot#tFoot td.dsO{color:#8E897E;}
 .fix-badge:hover{transform:scale(1.12);}
 /* v3.13: 경고 느낌표 배지 — 셀 좌상단(락 핀과 안 겹침) */
@@ -485,7 +492,8 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
         <button onclick="dismissDemoBanner()" style="padding:3px 10px;background:var(--bg);border:0.5px solid #F0C690;border-radius:4px;font-size:10px;color:#791F1F;cursor:pointer;font-family:inherit;flex-shrink:0">알겠습니다 ✓</button>
       </div>
     </div>
-    <div class="tbl-scroll"><table id="tbl"><thead id="tHead"></thead><tbody id="tBody"></tbody><tfoot id="tFoot"></tfoot></table></div>
+    <div class="tbl-scroll" id="tblScroll"><table id="tbl"><thead id="tHead"></thead><tbody id="tBody"></tbody></table></div>
+    <div class="tbl-foot-scroll" id="tblFootScroll"><table id="tblFoot"><tfoot id="tFoot"></tfoot></table></div>
     <div class="stat-warn-wrap">
       <div class="stats-row" id="sRow"></div>
       <div class="warn-summary" id="warnSummary"></div>
@@ -745,7 +753,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span id="aboutVersion">Version 3.14.5 · Public Release</span>
+        <span id="aboutVersion">Version 3.14.8 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -1369,7 +1377,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.14.5';
+const APP_VERSION = '3.14.8';
 const UPDATE_NOTES = [
   { v:'3.14.0', date:'2026-05', items:[
     '⌨️ 키보드 단축키 추가 — 방향키로 셀 이동, 1~6으로 D/E/N/O/V/경조 입력, Del 삭제',
@@ -4342,6 +4350,7 @@ function render(){
   renderStats(cf, _pvList);
   renderDayStats();
   applyKbFocus();  // v3.14: 키보드 포커스 셀 표시 복원 (render로 DOM 새로 그려졌으므로)
+  setupFootScrollSync();  // v3.14.7: 통계 행 테이블 가로 스크롤을 본체와 동기화
   if(document.getElementById('sPanel').classList.contains('open')) renderCards();
   // v3.7: 원티드 모드 UI 상태 동기화 (카운트 갱신 포함)
   applyWantedModeUI();
@@ -4368,6 +4377,20 @@ function render(){
 }
 
 // v3.13: 하단 날짜별 통계 행 (dutymate 스타일) — 각 날짜의 D/E/N/O 인원 + 최소인원 미달 경고
+// v3.14.7: 통계 행(tfoot) 테이블의 가로 스크롤을 본체 표와 동기화.
+//   본체를 좌우로 스크롤하면 통계 행도 같은 만큼 이동 → 컬럼 정렬 유지.
+var _footSyncBound=false;
+function setupFootScrollSync(){
+  var body=document.getElementById('tblScroll');
+  var foot=document.getElementById('tblFootScroll');
+  if(!body||!foot) return;
+  // 즉시 한 번 동기화 (render 직후 위치 맞춤)
+  foot.scrollLeft=body.scrollLeft;
+  if(_footSyncBound) return;       // 리스너는 한 번만 등록
+  body.addEventListener('scroll', function(){ foot.scrollLeft=body.scrollLeft; });
+  _footSyncBound=true;
+}
+
 function renderDayStats(){
   var nd=ndays(cy,cm);
   var foot=document.getElementById('tFoot');
@@ -4470,7 +4493,7 @@ function renderStats(cf, pvList){
   }
   var lastUpd=localStorage.getItem('dv6_hol_updated');
   var updStr=lastUpd?(' | 공휴일 최종갱신: '+lastUpd.slice(0,10)):'';
-  document.getElementById('offInfo').textContent='이번 달 Off 할당량: '+offQ()+'일 (토 '+sat+'일 + 일 '+sun+'일 + 공휴일(평일) '+hol+'일) | 수간호사 제외 전원 동일'+updStr;
+  document.getElementById('offInfo').textContent='이번 달 Off 할당량: '+offQ()+'일 (토 '+sat+'일 + 일 '+sun+'일 + 공휴일(평일) '+hol+'일) | 수간호사 제외 전원 동일'+updStr+' | v'+APP_VERSION;
 }
 
 // v3.14: 경고 요약 박스 — conflicts/선호위반을 자연어 상위 N건으로 요약 표시.
