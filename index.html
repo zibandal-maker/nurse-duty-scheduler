@@ -162,7 +162,7 @@ body.wanted-mode td.dc:not(.wanted-locked):hover{outline:1px dashed #F07320;outl
 .stl{font-size:9px;color:var(--text3);margin-top:1px;}
 .off-info{font-size:10px;color:var(--text2);margin-top:5px;padding:4px 8px;background:var(--bg2);border-radius:var(--r);}
 
-.side-panel{width:320px;flex-shrink:0;border-left:0.5px solid var(--bd2);overflow-y:auto;display:none;background:var(--bg);}
+.side-panel{width:320px;flex-shrink:0;border-right:0.5px solid var(--bd2);overflow-y:auto;display:none;background:var(--bg);order:-1;}
 .side-panel.open{display:block;}
 .pb{padding:12px;}
 .phdr{font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
@@ -231,6 +231,40 @@ body.wanted-mode td.dc:not(.wanted-locked):hover{outline:1px dashed #F07320;outl
 
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a18;color:#fff;padding:7px 16px;border-radius:var(--r);font-size:12px;z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;}
 .toast.show{opacity:1;}
+
+/* ── v3.11: PC 화면 폰트 +2px 확대 (모바일은 그대로) ───────────────────── */
+/* 모바일(좁은 화면)에선 현재 폰트가 가독성 좋고, PC(넓은 화면)에서만 작게 느껴짐.
+   min-width 1024px에서만 주요 폰트를 +2px씩 키운다. */
+@media (min-width: 1024px){
+  body{font-size:15px;}            /* 13→15 */
+  .app-title{font-size:17px;}      /* 15→17 */
+  .mlabel{font-size:16px;}         /* 14→16 */
+  .nbtn{font-size:15px;}           /* 13→15 */
+  .sbl{font-size:13px;}            /* 11→13 */
+  .schip{font-size:13px;}          /* 11→13 */
+  .shint{font-size:12px;}          /* 10→12 */
+  .btn{font-size:13px;}            /* 11→13 */
+  .btn.sm{font-size:12px;}         /* 10→12 */
+  thead th{font-size:12px;}        /* 10→12 */
+  .pill{font-size:12px;}
+  .nname{font-size:15px;}
+  .nmeta{font-size:12px;}
+  .stn{font-size:17px;}
+  .stl{font-size:12px;}
+  .sdday{font-size:11px;}
+  .toast{font-size:14px;}
+  /* 셀 시프트 코드 */
+  td.dc{font-size:14px;}
+  /* 규칙설정/모달 내부 — 가독성 향상 (변경점 1) */
+  .modal{font-size:14px;}
+  .efr label{font-size:13px;}
+  /* 이모지/아이콘 상대 확대 (변경점 3) — 폰트보다 2 더 크게 */
+  .emoji, .ico, .schip, .stc-emoji{font-size:1.18em;}
+  /* 간호사 패널 PC에서 약간 넓게 (좌측 배치 + 폰트 확대 대응) */
+  .side-panel{width:350px;}
+}
+/* 이모지를 감싸 상대 확대용 클래스 (전 화면 공통, 인라인 이모지에 적용) */
+.emoji{font-size:1.15em;line-height:1;display:inline-block;vertical-align:-0.05em;}
 
 @media print{
   .topbar,.shiftbar,.side-panel,.stats-row,.off-info{display:none!important;}
@@ -331,7 +365,12 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
 
   <div class="side-panel" id="sPanel">
     <div class="pb">
-      <div class="phdr"><span>간호사 관리</span><button class="xbtn" onclick="togglePanel()">✕</button></div>
+      <div class="phdr"><span>간호사 관리</span>
+        <span style="display:flex;gap:4px;align-items:center">
+          <button class="btn sm" onclick="openOffBoard()" title="off 잔고 현황판 — 전원의 기본/이월/누적 한눈에" style="font-size:10px">🛌 off 현황</button>
+          <button class="xbtn" onclick="togglePanel()">✕</button>
+        </span>
+      </div>
       <div class="ncards" id="nCards"></div>
       <div class="divider"></div>
       <div class="addsec">
@@ -472,6 +511,9 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
     <div class="mhdr">ⓘ Nurse Duty Scheduler</div>
     <div style="font-size:11px;color:var(--text);line-height:1.55;overflow-y:auto;padding-right:4px">
 
+      <!-- v3.11: 업데이트 노트 (updateNote()가 채움) -->
+      <div id="updateNoteBox" style="margin-bottom:14px;padding:9px 11px;background:linear-gradient(135deg,#FFF4EC 0%,#FCE4EC 100%);border-radius:7px;border-left:3px solid #C2185B"></div>
+
       <div style="margin-bottom:14px;padding:8px 10px;background:var(--bg2);border-radius:6px;border-left:3px solid #1E6DBF">
         <div style="font-weight:700;font-size:11px;margin-bottom:3px">간호사 3교대 듀티 자동 배치 도구</div>
         <div style="font-size:10px;color:var(--text2)">단일 병동용 · 브라우저 단독 실행 · 서버 불필요</div>
@@ -547,7 +589,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span>Version 3.10.0 · Public Release</span>
+        <span>Version 3.11.1 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -677,12 +719,14 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
         <a href="#help-rules"     onclick="scrollHelp('help-rules'); return false;"     class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">⚙️ 규칙설정</a>
         <a href="#help-patterns"  onclick="scrollHelp('help-patterns'); return false;"  class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">🚫 금지 패턴</a>
         <a href="#help-wanted"    onclick="scrollHelp('help-wanted'); return false;"    class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">📌 원티드 듀티</a>
+        <a href="#help-off"       onclick="scrollHelp('help-off'); return false;"       class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">🛌 off 이월·경조</a>
         <a href="#help-warn"      onclick="scrollHelp('help-warn'); return false;"      class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">⚠️ 충돌 검사</a>
         <a href="#help-save"      onclick="scrollHelp('help-save'); return false;"      class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">💾 저장/백업</a>
         <a href="#help-export"    onclick="scrollHelp('help-export'); return false;"    class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">📤 Excel/인쇄</a>
         <a href="#help-pwa"       onclick="scrollHelp('help-pwa'); return false;"       class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">📱 홈 화면 추가</a>
         <a href="#help-faq"       onclick="scrollHelp('help-faq'); return false;"       class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">❔ FAQ</a>
         <a href="#help-shortcuts" onclick="scrollHelp('help-shortcuts'); return false;" class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">⌨️ 단축키</a>
+        <a href="#help-updates"   onclick="scrollHelp('help-updates'); return false;"   class="hnav-item" style="display:block;padding:6px 8px;color:var(--text);text-decoration:none;border-radius:4px">🎉 업데이트 기록</a>
       </nav>
 
       <!-- 우측 본문 -->
@@ -761,6 +805,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
             <li><b style="color:#5B44C8">N</b> Night · 23:00-07:00</li>
             <li><b style="color:#686864">O</b> Off (통합)</li>
             <li><b style="color:#C0781A">V</b> 연차 (잔여에서 차감)</li>
+            <li><b style="color:#C2185B">B</b> 경조/공가 등 특별휴가 (off 정량과 별개)</li>
           </ul>
           <h3 style="font-size:12px;font-weight:700;margin:12px 0 4px">입력 방법</h3>
           <ol style="padding-left:18px;margin:0">
@@ -842,10 +887,13 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
           <h3 style="font-size:12px;font-weight:700;margin:12px 0 4px">단일 등록 (셀 클릭)</h3>
           <ol style="padding-left:18px;margin:0;font-size:11px">
             <li>시프트바의 <b>📌 원티드</b> 버튼 → 원티드 모드 ON (주황색)</li>
-            <li>(선택) 시프트 코드 미리 선택 (V/O/D 등)</li>
-            <li>캘린더 셀 클릭 → 즉시 락 (📌 표시)</li>
-            <li>다시 클릭 → 락 해제</li>
+            <li><b>먼저 시프트 칩을 선택</b> (D/E/N/O/V/경조 중 원하는 것)</li>
+            <li>캘린더 셀 클릭 → <b>선택한 시프트로 배정 + 고정</b> (📌 표시)</li>
+            <li>고정된 셀 다시 클릭 → 해제 (시프트도 제거)</li>
           </ol>
+          <div style="margin-top:6px;padding:6px 9px;background:#FFF4EC;border-radius:5px;font-size:10.5px;color:#C05010">
+            💡 v3.11부터 원티드에 <b>어떤 듀티를 넣을지 선택</b>할 수 있습니다. 예: 김간호사 15일을 'V(연차)'로 고정, 20일을 'N(나이트)'로 고정.
+          </div>
           <h3 style="font-size:12px;font-weight:700;margin:12px 0 4px">일괄 등록 (목록·관리)</h3>
           <p style="margin:0">시프트바의 <b>목록·관리</b> 버튼 → 모달에서 간호사·일자·카테고리·메모 입력 → ＋ 등록</p>
           <h3 style="font-size:12px;font-weight:700;margin:12px 0 4px">카테고리 7종</h3>
@@ -854,6 +902,38 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
           <p style="margin:0;font-size:11px">⚙️ 규칙설정 → 📌 원티드 한도에서 월 전체 / 1인당 월 한도 설정. <b>초과해도 등록은 허용</b>되며 경고만 표시.</p>
           <h3 style="font-size:12px;font-weight:700;margin:12px 0 4px">자동배치와의 관계</h3>
           <p style="margin:0">자동배치 실행 시 락된 셀은 <b>100% 보존</b>. 다른 셀만 알고리듬으로 채워집니다. 토스트에 "원티드 N건 보존" 표시.</p>
+        </section>
+
+        <!-- ── off 이월·경조 ── -->
+        <section id="help-off" style="margin-top:24px">
+          <h2 style="font-size:15px;font-weight:700;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--bd2)">🛌 off 이월 · 경조 휴무</h2>
+          <p>off(휴무)는 "그달에 꼭 다 써야 하는 정량"이 아니라 <b>다음 달로 이월되는 누적 잔고</b>로 관리됩니다. 못 쓴 off는 사라지지 않습니다.</p>
+
+          <h3 style="font-size:12px;font-weight:700;margin:12px 0 4px">off 목표 계산</h3>
+          <ul style="padding-left:18px;margin:0;font-size:11px">
+            <li><b>기본</b> = 그달의 휴일 수 (토 + 일 + 공휴일)</li>
+            <li><b>이월</b> = 지난 달까지 못 쓴(또는 초과한) off 누적분</li>
+            <li><b>목표</b> = 기본 + 이월</li>
+          </ul>
+
+          <h3 style="font-size:12px;font-weight:700;margin:12px 0 4px">off 잔고 현황판</h3>
+          <p style="margin:0">간호사 관리 패널 상단 <b>🛌 off 현황</b> 버튼 → 전원의 기본·이월·목표를 한눈에 봅니다. 간호사 카드의 "Off N/M" 옆에 <b style="color:#C2185B">*</b> 표시가 있으면 이월분이 반영된 것 (마우스 올리면 분해 표시).</p>
+
+          <h3 style="font-size:12px;font-weight:700;margin:12px 0 4px">월마감 (이월 누적)</h3>
+          <ol style="padding-left:18px;margin:0;font-size:11px">
+            <li>한 달 듀티를 다 짠 뒤, off 현황판에서 <b>📋 이번 달 마감</b> 클릭</li>
+            <li>이번 달 못 쓴 off가 각자 이월 잔고에 더해짐 (초과 사용분은 차감)</li>
+            <li>다음 달 목표에 그 이월분이 자동 반영됨</li>
+          </ol>
+          <div style="margin-top:6px;padding:6px 9px;background:#FCE4EC;border-radius:5px;font-size:10.5px;color:#880E4F">
+            ⚠️ 월마감은 <b>월말에 한 번만</b> 누르세요. 같은 달 두 번 누르면 이월이 중복됩니다 (경고가 뜹니다).
+          </div>
+
+          <h3 style="font-size:12px;font-weight:700;margin:12px 0 4px">off 목표 수동 조정</h3>
+          <p style="margin:0">특정 간호사의 off 목표를 직접 정하려면, 간호사 카드 → "🛌 off 목표 조정"에 숫자 입력. 비우면 자동(기본+이월)으로 돌아갑니다.</p>
+
+          <h3 style="font-size:12px;font-weight:700;margin:12px 0 4px"><b style="color:#C2185B">B</b> 경조/공가 휴무</h3>
+          <p style="margin:0">결혼·장례 등 경조사나 공가는 <b>연차(V)·off(O)와 별개</b>인 특별휴가입니다. 시프트 팔레트에서 <b style="color:#C2185B">경조(B)</b>를 선택해 배정하세요. B는 off 목표 계산에 포함되지 않습니다 (법정 유급 특별휴가이므로).</p>
         </section>
 
         <!-- ── 충돌 검사 ── -->
@@ -969,6 +1049,12 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
           </table>
         </section>
 
+        <!-- ── 업데이트 기록 (JS가 UPDATE_NOTES로 채움) ── -->
+        <section id="help-updates" style="margin-top:24px">
+          <h2 style="font-size:15px;font-weight:700;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--bd2)">🎉 업데이트 기록</h2>
+          <div id="helpUpdatesBody"></div>
+        </section>
+
         <!-- ── 끝 안내 ── -->
         <section style="margin-top:32px;padding-top:16px;border-top:0.5px solid var(--bd2);text-align:center;font-size:10.5px;color:var(--text3)">
           <p style="margin:0">더 궁금한 점이 있다면? 📧 <a href="mailto:zibandal@gmail.com" style="color:#1E6DBF">zibandal@gmail.com</a></p>
@@ -1020,6 +1106,28 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
 </div>
 <!-- 원티드 관리 모달 끝 -->
 
+<!-- v6.4: off 잔고 현황판 모달 (C안) ──────────────────────────────────── -->
+<div class="ov" id="offBoardOv">
+  <div class="modal" style="max-width:560px;width:94vw">
+    <div class="mhdr" style="display:flex;align-items:center;justify-content:space-between">
+      <span><span class="emoji">🛌</span> off 잔고 현황판 <span id="offBoardMonth" style="font-size:12px;color:var(--text3);font-weight:400"></span></span>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.6">
+      off는 <b>정량이 아니라 누적 잔고</b>입니다. 이번 달 못 쓴 off는 소멸되지 않고 다음 달로 이월됩니다.
+      <br>· <b>기본</b> = 그달 휴일 수(토+일+공휴일) · <b>이월</b> = 지난 달까지 누적분 · <b>목표</b> = 기본+이월
+    </div>
+    <div class="mscroll" id="offBoardBody" style="max-height:50vh"></div>
+    <div style="display:flex;gap:6px;margin-top:12px">
+      <button class="btn" style="background:#C2185B;color:#fff;border-color:#C2185B;flex:1;font-weight:600" onclick="confirmCloseMonth()">📋 이번 달 마감 (이월 누적)</button>
+      <button class="mclose" style="margin:0;flex:1" onclick="closeOv('offBoardOv')">닫기</button>
+    </div>
+    <div style="font-size:10.5px;color:var(--text3);margin-top:8px;line-height:1.5">
+      ⚠️ <b>월마감</b>은 이번 달 미소진 off를 각자 이월잔고에 더합니다. 듀티를 다 짠 뒤 월말에 한 번만 누르세요. (중복 실행 시 경고)
+    </div>
+  </div>
+</div>
+<!-- off 현황판 끝 -->
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1029,9 +1137,31 @@ const SHIFTS=[
   {code:'N',label:'Night',color:'#5B44C8',bg:'#e8e4fb',desc:'23:00-07:00'},
   {code:'O',label:'Off',  color:'#686864',bg:'#ebebea',desc:'Off (통합)'},
   {code:'V',label:'연차', color:'#C0781A',bg:'#faeeda',desc:'연차 (잔여에서 차감)'},
+  {code:'B',label:'경조', color:'#C2185B',bg:'#fce4ec',desc:'경조/공가 등 특별휴가 (off 정량 제외)'},
 ];
 const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A085','#D4AC0D','#1E6DBF','#5B44C8','#2C3E50','#686864'];
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
+// ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
+// 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
+const APP_VERSION = '3.11.1';
+const UPDATE_NOTES = [
+  { v:'3.11.1', date:'2026-05', items:[
+    '🎉 업데이트 노트 — 새 버전이 나오면 이 안내가 자동으로 표시됩니다',
+    '🛌 off 이월 시스템 — 못 쓴 off가 다음 달로 누적 (off 현황판 + 월마감)',
+    '💗 경조/공가 휴무 코드 \'B\' 추가 (off 정량과 별개)',
+    '📌 원티드 카드 선택 — 시프트(D/E/N/O/V/B) 지정 후 셀 클릭으로 고정',
+    '🔍 PC 화면 폰트·이모지 확대 + 규칙설정 가독성 개선',
+    '👥 간호사 관리 패널을 좌측으로 이동',
+  ]},
+  { v:'3.10.0', date:'2026-05', items:[
+    '📊 교대 인력 구성을 평일/주말 2축으로 분리 (주말 인원 조절로 off 총량 관리)',
+    '📈 슬롯 진단 — 적정 최소인원 자동 안내',
+  ]},
+  { v:'3.9.x', date:'2026-05', items:[
+    '✦ 자동배치 30전략 + 사전식 4계층 점수 (법적 위험 최우선 회피)',
+    '📖 인앱 사용 가이드, 📌 원티드 듀티, 🎓 프리셉터 페어링',
+  ]},
+];
 const RBG={'수간호사':'#FCEBEB','주임':'#FAEEDA','차지':'#E6F1FB','평간호사':'#EAF3DE','신규간호사':'#F0EDFE'};
 const RCOL={'수간호사':'#791F1F','주임':'#633806','차지':'#0C447C','평간호사':'#27500A','신규간호사':'#4A2E8A'};
 const MKO=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -1310,13 +1440,13 @@ function buildReportData(){
   var quota=offQ();
   var ord=sorted();
   var rows=[];
-  var totals={D:0,E:0,N:0,O:0,V:0,empty:0};
+  var totals={D:0,E:0,N:0,O:0,V:0,B:0,empty:0};
 
   ord.forEach(function(n){
     var row={
       id:n.id, name:n.name, role:n.role, color:n.color,
       yr:yrs(n.joinDate),
-      D:0,E:0,N:0,O:0,V:0,empty:0,
+      D:0,E:0,N:0,O:0,V:0,B:0,empty:0,
       weekendWork:0, // 토/일/공휴일 근무(D/E/N) 횟수
       vacUsed:cntVacYear(n.id,cy),
       vacRemain:remVac(n),
@@ -1340,7 +1470,7 @@ function buildReportData(){
     var dvar=den.reduce(function(s,v){return s+Math.pow(v-dmean,2);},0)/3;
     row.balanceScore=Math.max(0,10-Math.round(Math.sqrt(dvar)));
     rows.push(row);
-    ['D','E','N','O','V'].forEach(function(k){totals[k]+=row[k];});
+    ['D','E','N','O','V','B'].forEach(function(k){totals[k]+=row[k];});
     totals.empty+=row.empty;
   });
   return{rows:rows,totals:totals,nd:nd,quota:quota};
@@ -1351,7 +1481,7 @@ function renderReport(){
   var rows=data.rows, tot=data.totals, nd=data.nd;
   var MKO2=MKO;
 
-  var SHIFT_COLORS={D:'#1E6DBF',E:'#1A8C62',N:'#5B44C8',O:'#686864',V:'#C0781A'};
+  var SHIFT_COLORS={D:'#1E6DBF',E:'#1A8C62',N:'#5B44C8',O:'#686864',V:'#C0781A',B:'#C2185B'};
 
   // ── 헤더 요약 카드들
   var total=rows.length*nd;
@@ -1359,7 +1489,7 @@ function renderReport(){
   var pct=total?Math.round(filled/total*100):0;
 
   var html='<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">';
-  [{k:'D',l:'Day'},{k:'E',l:'Eve'},{k:'N',l:'Night'},{k:'O',l:'Off'},{k:'V',l:'연차'}].forEach(function(s){
+  [{k:'D',l:'Day'},{k:'E',l:'Eve'},{k:'N',l:'Night'},{k:'O',l:'Off'},{k:'V',l:'연차'},{k:'B',l:'경조'}].forEach(function(s){
     html+='<div style="flex:1;min-width:70px;background:var(--bg2);border-radius:var(--r);padding:8px 10px;text-align:center">'
       +'<div style="font-size:18px;font-weight:700;color:'+SHIFT_COLORS[s.k]+'">'+tot[s.k]+'</div>'
       +'<div style="font-size:10px;color:var(--text3)">'+s.l+'</div></div>';
@@ -1965,18 +2095,99 @@ function reindexOrder(){
 
 function offQ(nurseId){
   // 기본 정량 = 그달의 휴일(토+일+공휴일) 수
+  var nd=ndays(cy,cm),base=0;
+  for(var d=1;d<=nd;d++) if(isWH(cy,cm,d)) base++;
+  if(nurseId===undefined) return base;
+  var n=nurses.find(function(x){return x.id===nurseId;});
+  if(!n) return base;
+  // v6.4: 사람별 수동 조정(override)이 있으면 그 값으로 대체 (이월과 무관하게 절대값)
+  if(n.attributes && n.attributes.targetOffOverride!==null
+     && n.attributes.targetOffOverride!==undefined
+     && !isNaN(n.attributes.targetOffOverride)){
+    return n.attributes.targetOffOverride;
+  }
+  // v6.4: 이월 누적분 반영 — target = 기본정량 + 이월잔고
+  var bal = (n.carryOver && typeof n.carryOver.offBalance==='number') ? n.carryOver.offBalance : 0;
+  return base + bal;
+}
+// v6.4: off 잔고 현황판 열기 (C안)
+function openOffBoard(){
+  document.getElementById('offBoardMonth').textContent = '('+cy+'년 '+(cm+1)+'월)';
+  var base = offBase();
+  var ord = sorted().filter(function(n){return n.role!=='수간호사';});
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<thead><tr style="background:var(--bg2)">'
+    +'<th style="padding:6px 8px;text-align:left;font-weight:700">간호사</th>'
+    +'<th style="padding:6px;text-align:center;font-weight:700">이번달 off</th>'
+    +'<th style="padding:6px;text-align:center;font-weight:700">기본</th>'
+    +'<th style="padding:6px;text-align:center;font-weight:700">이월</th>'
+    +'<th style="padding:6px;text-align:center;font-weight:700">목표</th>'
+    +'</tr></thead><tbody>';
+  ord.forEach(function(n){
+    var used = cntOff(n.id);
+    var bal = (n.carryOver&&typeof n.carryOver.offBalance==='number')?n.carryOver.offBalance:0;
+    var tgt = offQ(n.id);
+    var ovr = (n.attributes&&n.attributes.targetOffOverride!=null);
+    var balTxt = bal>0?('<span style="color:#1A8C62">+'+bal+'</span>'):bal<0?('<span style="color:#C0392B">'+bal+'</span>'):'0';
+    var usedCls = used>tgt?'color:#C0392B;font-weight:700':used<tgt-1?'color:#C0781A;font-weight:700':'color:#1A8C62;font-weight:700';
+    html += '<tr style="border-top:0.5px solid var(--bd)">'
+      +'<td style="padding:6px 8px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+n.color+';margin-right:5px"></span>'+n.name+' <span style="font-size:10px;color:var(--text3)">'+n.role+'</span></td>'
+      +'<td style="padding:6px;text-align:center;'+usedCls+'">'+used+'</td>'
+      +'<td style="padding:6px;text-align:center;color:var(--text3)">'+base+'</td>'
+      +'<td style="padding:6px;text-align:center">'+balTxt+'</td>'
+      +'<td style="padding:6px;text-align:center;font-weight:700">'+tgt+(ovr?' <span style="font-size:9px;color:#C2185B">수동</span>':'')+'</td>'
+      +'</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('offBoardBody').innerHTML = html;
+  document.getElementById('offBoardOv').classList.add('open');
+}
+function confirmCloseMonth(){
+  closeMonthOffBalance();
+  // 마감 후 현황판 갱신
+  setTimeout(function(){ if(document.getElementById('offBoardOv').classList.contains('open')) openOffBoard(); }, 400);
+}
+
+// v6.4: off 기본 정량(이월 제외) — 월마감 계산·진단용
+function offBase(){
   var nd=ndays(cy,cm),c=0;
   for(var d=1;d<=nd;d++) if(isWH(cy,cm,d)) c++;
-  // v6.2: 사람별 수동 조정 (targetOffOverride)
-  if(nurseId!==undefined){
-    var n=nurses.find(function(x){return x.id===nurseId;});
-    if(n && n.attributes && n.attributes.targetOffOverride!==null
-       && n.attributes.targetOffOverride!==undefined
-       && !isNaN(n.attributes.targetOffOverride)){
-      return n.attributes.targetOffOverride;
-    }
-  }
   return c;
+}
+
+// v6.4: 월마감 — 이번 달 미소진 off를 각자 offBalance에 누적(이월)
+// 데이터 층 로직(룰 아님). 같은 달 중복 실행 방지를 위해 마감 기록을 남긴다.
+function closeMonthOffBalance(){
+  if(editLocked){showToast('🔒 편집이 잠겨 있습니다');return;}
+  var ym = cy+'-'+(cm+1);
+  var closedKey = 'dv6_offclosed';
+  var closed = {};
+  try{ closed = JSON.parse(localStorage.getItem(closedKey)||'{}'); }catch(e){ closed={}; }
+  if(closed[ym]){
+    if(!confirm(ym+' 월은 이미 마감했습니다.\n다시 마감하면 이월이 중복 계산됩니다.\n그래도 진행할까요?')) return;
+  }
+  var base = offBase();
+  var lines = [];
+  nurses.forEach(function(n){
+    if(n.role==='수간호사') return;
+    if(!n.carryOver) n.carryOver={offBalance:0};
+    var used = cntOff(n.id);
+    // 사람별 override가 있으면 그 값 기준, 없으면 기본정량+기존이월
+    var tgt = offQ(n.id);
+    var unspent = tgt - used;   // 양수=못 씀(이월), 음수=초과 사용(이월 차감)
+    n.carryOver.offBalance += unspent;
+    if(unspent!==0) lines.push(n.name+': '+(unspent>0?'+':'')+unspent+' → 누적 '+n.carryOver.offBalance);
+  });
+  closed[ym]=Date.now();
+  try{ localStorage.setItem(closedKey, JSON.stringify(closed)); }catch(e){}
+  saveLocal();
+  render();
+  showToast('✓ '+ym+' 월마감 — 미소진 off가 이월되었습니다', 2800);
+  if(lines.length){
+    setTimeout(function(){
+      alert('📋 '+ym+' 이월 내역\n\n'+lines.join('\n')+'\n\n(양수=다음 달로 이월, 음수=초과사용 차감)');
+    }, 300);
+  }
 }
 function cntCode(nid,code){
   var nd=ndays(cy,cm),c=0;
@@ -2212,16 +2423,17 @@ function conflicts(){
         msg:n.name+' — 월 야간 '+nCnt+'회 (한도 '+limit+'회, '+(attr.nightDedicated?'야간전담':'일반')+')'});
     }
 
-    // ── v6.2: off 정량(off_quota) 검출 — L1 (법정 휴무) ──────────────────
-    // 수간호사는 제외(평일 D 고정 등 별도 규칙). 그 외 전원 target 대비 검사.
+    // ── v6.4: off 적정배분(off_balance) 검출 — L3 (공정성, 이월 반영) ──────
+    // off는 "그달 정량 강제"가 아니라 "이월되는 누적 잔고". 못 쓰면 다음 달로
+    // 이월되므로 한 달 단위 강제(L1)가 아니라 L3 적정배분. target은 이월 포함.
     if(n.role!=='수간호사'){
-      var offUsed = cntOff(n.id);          // 실제 배정된 off 수
-      var offTarget = offQ(n.id);          // 사람별 target (없으면 토+일+공휴일)
+      var offUsed = cntOff(n.id);          // 실제 배정된 off 수 (O만, V·B 제외)
+      var offTarget = offQ(n.id);          // 사람별 target (기본정량 + 이월잔고)
       var offDiff = offUsed - offTarget;
       if(offDiff !== 0){
-        list.push({d:0, sh:'O', sc:0, pc:offUsed, type:'off-quota', severity:'high',
+        list.push({d:0, sh:'O', sc:0, pc:offUsed, type:'off-balance', severity:'low',
           msg:n.name+' — off '+offUsed+'/'+offTarget+'일 ('
-             +(offDiff>0?('초과 +'+offDiff):('부족 '+offDiff))+')'});
+             +(offDiff>0?('초과 +'+offDiff):('부족 '+offDiff))+', 이월로 조정 가능)'});
       }
     }
 
@@ -2344,7 +2556,7 @@ var LAYER_OF_TYPE = {
   'newNurse-nightAlone':'L1',  // 신규 단독 야간
   'newNurse-noNight':   'L1',  // 신규 야간 금지(오리엔테이션)
   'pattern-NNNN':       'L1',  // 야간 4연속 (KOSHA 사고위험 급증)
-  'off-quota':          'L1',  // v6.2: off 정량 위반 (법정 휴무, 넘침/모자람 모두)
+  // v6.4: off는 L3(공정성, 이월 반영). off-quota(L1) → off-balance(L3) 전환
   // L2 — 강한 권고: 위험 패턴
   'pattern-NOD':        'L2', 'pattern-EOD':  'L2',
   'pattern-ND':         'L2', 'pattern-NE':   'L2',
@@ -2356,6 +2568,7 @@ var LAYER_OF_TYPE = {
   // L3 — 공정성
   'staffing':           'L3',  // 인력 구성 (공정성+안전 중간, L3로)
   'newNurse-monthMax':  'L3',
+  'off-balance':        'L3',  // v6.4: off 적정배분 (이월 반영, 공정성)
   // L4 — 선호
   'attr-preceptorPair': 'L4',
 };
@@ -3155,10 +3368,13 @@ function render(){
   var tb='';
   ord.forEach(function(n){
     var rv=remVac(n);var yr=yrs(n.joinDate);var oU=cntOff(n.id);
-    var Qn=offQ(n.id);  // v6.2: 사람별 target
+    var Qn=offQ(n.id);  // v6.2: 사람별 target (v6.4: 이월 포함)
+    var bal=(n.carryOver&&typeof n.carryOver.offBalance==='number')?n.carryOver.offBalance:0;
     var vcCls=rv<=0?'p-out':rv<=3?'p-warn':'p-ok';
     var oCls=oU>Qn?'p-out':oU>=Qn-2?'p-warn':'p-blue';
-    var offPill=n.role!=='수간호사'?'<span class="pill '+oCls+'" title="배정 off '+oU+' / 목표 '+Qn+'">Off '+oU+'/'+Qn+'</span>':'';
+    var balStar=bal!==0?' <span style="color:#C2185B;font-weight:700">*</span>':'';
+    var balTip=bal!==0?('배정 off '+oU+' / 목표 '+Qn+' (기본 '+offBase()+(bal>0?' + 이월 '+bal:' − 이월 '+Math.abs(bal))+')'):('배정 off '+oU+' / 목표 '+Qn);
+    var offPill=n.role!=='수간호사'?'<span class="pill '+oCls+'" title="'+balTip+'">Off '+oU+'/'+Qn+balStar+'</span>':'';
     var vacYear=cntVacYear(n.id, cy);
     var vacPill='<span class="pill '+vcCls+'" title="올해('+cy+'년) 사용 '+vacYear+'일 / 총 '+(n.vacTotal||0)+'일">연차 '+rv+'일</span>';
     // 생일 체크 (이번 달)
@@ -3378,20 +3594,42 @@ function onNameClick(nid){
 
 function onCell(nid,d){
   if(editLocked){showToast('🔒 편집이 잠겨 있습니다');return;}
-  // v3.7: 원티드 모드 — 셀 클릭이 락 토글
+  // v3.7+v3.11: 원티드 모드 — 선택된 시프트 코드를 셀에 배정하며 락
   if(wantedMode){
-    var wasLocked = isLocked(nid, d);
-    toggleLock(nid, d);
+    var k = key(nid,d);
     var n2 = nurses.find(function(x){return x.id===nid;});
     var nm = n2 ? n2.name : '';
-    var nowLocked = isLocked(nid, d);
-    // 새로 락 ON된 경우 한도 검사 (소프트 경고)
-    if(!wasLocked && nowLocked){
-      checkWantedLimits(nid);
+    var wasLocked = isLocked(nid, d);
+
+    if(wasLocked){
+      // 이미 락된 셀 클릭 → 락 해제 + 코드 제거
+      unlockCell(nid, d);
+      delete schedule[k];
+      saveLocal();
+      render();
+      showToast(nm+' '+d+'일 — 원티드 해제 🔓', 1500);
+      return;
     }
+
+    // 새 원티드 락: 선택된 시프트 코드를 넣어야 함
+    if(!selShift){
+      showToast('📌 먼저 위 시프트 칩(D/E/N/O/V/경조)을 선택한 뒤 셀을 클릭하세요', 2600);
+      return;
+    }
+    // 연차(V)는 잔여 검사
+    if(selShift.code==='V'){
+      if(remVac(n2)<=0){ showToast(nm+' 잔여 연차 없음', 1800); return; }
+    }
+    // 코드 배정 + 락 (카테고리는 코드에 맞춰 기본 추정)
+    schedule[k] = selShift.code;
+    var autoCat = selShift.code==='V' ? 'vacation'
+                : selShift.code==='B' ? 'event'
+                : selShift.code==='O' ? 'personal' : 'other';
+    lockCell(nid, d, {category:autoCat, memo:'', ts:Date.now()});
+    checkWantedLimits(nid);
     saveLocal();
     render();
-    showToast(nm+' '+d+'일 — 원티드 '+(nowLocked?'락 ON 📌':'락 해제 🔓'), 1500);
+    showToast(nm+' '+d+'일 — 원티드 '+selShift.code+' 락 📌', 1600);
     return;
   }
   if(selShift){
@@ -3416,8 +3654,8 @@ function toggleWantedMode(){
   wantedMode = !wantedMode;
   applyWantedModeUI();
   showToast(wantedMode
-    ? '📌 원티드 모드 ON — 셀 클릭으로 락 토글, 시프트는 클릭으로 미리 선택해 두세요'
-    : '📌 원티드 모드 OFF — 일반 배정 모드 복귀', 2200);
+    ? '📌 원티드 모드 ON — ①위 시프트 칩 선택 → ②셀 클릭하면 그 듀티로 고정됩니다'
+    : '📌 원티드 모드 OFF — 일반 배정 모드 복귀', 2600);
 }
 
 function applyWantedModeUI(){
@@ -3429,7 +3667,7 @@ function applyWantedModeUI(){
     btn.style.borderColor = '#F07320';
     btn.style.color = '#C05010';
     btn.style.boxShadow = '0 0 0 2px rgba(240,115,32,.25)';
-    if(hint) hint.textContent = '📌 원티드 모드 — 셀 클릭으로 락/해제';
+    if(hint) hint.textContent = '📌 원티드: 시프트 선택 후 셀 클릭 = 고정';
     document.body.classList.add('wanted-mode');
   } else {
     btn.style.background = 'var(--bg)';
@@ -3494,16 +3732,33 @@ document.querySelectorAll('.ov').forEach(function(ov){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('open');});
 });
 
+// v3.11: 업데이트 노트 렌더 (환영/About 모달 상단)
+function renderUpdateNote(){
+  var box = document.getElementById('updateNoteBox');
+  if(!box) return;
+  var latest = UPDATE_NOTES[0];
+  var html = '<div style="font-weight:800;font-size:12px;color:#C2185B;margin-bottom:5px">'
+    +'<span class="emoji">🎉</span> 업데이트 v'+latest.v+' <span style="font-weight:400;color:var(--text3);font-size:10px">'+latest.date+'</span></div>'
+    +'<ul style="margin:0;padding-left:16px;font-size:11px;color:var(--text);line-height:1.65">';
+  latest.items.forEach(function(it){ html += '<li>'+it+'</li>'; });
+  html += '</ul>'
+    +'<div style="margin-top:6px;font-size:10px;color:var(--text3)">전체 변경 내역은 <b>📖 사용 가이드 → 업데이트 기록</b>에서 볼 수 있습니다.</div>';
+  box.innerHTML = html;
+}
+
 // About / 정보 모달
 function openAbout(){
   // 일반 호출 시(ⓘ 버튼)에는 "다시 보지 않기" 옵션 숨김
   document.getElementById('aboutWelcomeOpts').style.display = 'none';
+  renderUpdateNote();
   document.getElementById('aboutOv').classList.add('open');
 }
 
 // v3.9.6: 도움말/메뉴얼 모달 ─────────────────────────────────────────────
 function openHelp(){
   document.getElementById('helpOv').classList.add('open');
+  // v3.11: 업데이트 기록 채우기
+  renderHelpUpdates();
   // 모달 열릴 때 검색 입력은 비워두기 + 컨텐츠를 맨 위로 스크롤
   var s = document.getElementById('helpSearch');
   if(s) s.value = '';
@@ -3513,6 +3768,23 @@ function openHelp(){
     var c = document.getElementById('helpContent');
     if(c) c.scrollTop = 0;
   }, 50);
+}
+
+// v3.11: 사용 가이드의 업데이트 기록을 UPDATE_NOTES로 렌더
+function renderHelpUpdates(){
+  var box = document.getElementById('helpUpdatesBody');
+  if(!box) return;
+  var html = '';
+  UPDATE_NOTES.forEach(function(note, i){
+    var isLatest = i===0;
+    html += '<div style="margin-bottom:14px;padding:10px 12px;background:'+(isLatest?'#FCE4EC':'var(--bg2)')+';border-radius:7px'+(isLatest?';border-left:3px solid #C2185B':'')+'">'
+      +'<div style="font-weight:700;font-size:12px;margin-bottom:5px;color:'+(isLatest?'#C2185B':'var(--text)')+'">'
+      +'v'+note.v+' <span style="font-weight:400;color:var(--text3);font-size:10px">'+note.date+(isLatest?' · 최신':'')+'</span></div>'
+      +'<ul style="margin:0;padding-left:16px;font-size:11px;line-height:1.65;color:var(--text)">';
+    note.items.forEach(function(it){ html += '<li>'+it+'</li>'; });
+    html += '</ul></div>';
+  });
+  box.innerHTML = html;
 }
 
 // 좌측 nav 클릭 시 우측 컨텐츠의 해당 섹션으로 부드럽게 스크롤
@@ -3565,8 +3837,17 @@ function showWelcomeIfNeeded(){
   try{
     var until = parseInt(localStorage.getItem('dv6_welcome_until') || '0');
     var now = Date.now();
+    // v3.11: 마지막으로 본 버전과 현재 버전이 다르면 (업데이트됨) 무조건 표시
+    var seenVer = localStorage.getItem('dv6_welcome_ver') || '';
+    if(seenVer !== APP_VERSION){
+      document.getElementById('aboutWelcomeOpts').style.display = 'block';
+      renderUpdateNote();
+      document.getElementById('aboutOv').classList.add('open');
+      return;
+    }
     if(until && now < until) return;
     document.getElementById('aboutWelcomeOpts').style.display = 'block';
+    renderUpdateNote();
     document.getElementById('aboutOv').classList.add('open');
   }catch(e){
     console.warn('[Welcome] error:', e);
@@ -3609,6 +3890,7 @@ function dismissWelcome(scope){
   else until = now + 24*60*60*1000;
   try{
     localStorage.setItem('dv6_welcome_until', String(until));
+    localStorage.setItem('dv6_welcome_ver', APP_VERSION); // v3.11: 본 버전 기록
   }catch(e){}
   closeOv('aboutOv');
   var label = scope==='day'?'하루':scope==='week'?'일주일':'한달';
@@ -4147,25 +4429,25 @@ function renderRulesList(){
 
   // ── 섹션 렌더 헬퍼
   function section(title,icon,content){
-    return '<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;padding-bottom:4px;border-bottom:0.5px solid var(--bd2)">'+icon+' '+title+'</div>'+content+'</div>';
+    return '<div style="margin-bottom:16px"><div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid var(--bd2)"><span class="emoji">'+icon+'</span> '+title+'</div>'+content+'</div>';
   }
   function row(label,input,hint){
-    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
-      +'<label style="font-size:11px;color:var(--text2);min-width:160px;flex-shrink:0">'+label+'</label>'
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'
+      +'<label style="font-size:13px;font-weight:700;color:var(--text);min-width:170px;flex-shrink:0">'+label+'</label>'
       +input
-      +(hint?'<span style="font-size:10px;color:var(--text3)">'+hint+'</span>':'')
+      +(hint?'<span style="font-size:11px;color:var(--text3)">'+hint+'</span>':'')
       +'</div>';
   }
   function numInput(id,val,min,max,step){
     step=step||1;
-    return '<input type="number" id="r_'+id+'" value="'+val+'" min="'+min+'" max="'+max+'" step="'+step+'" style="width:70px;padding:3px 6px;border:0.5px solid var(--bd2);border-radius:6px;font-size:11px;background:var(--bg);color:var(--text);font-family:inherit">';
+    return '<input type="number" id="r_'+id+'" value="'+val+'" min="'+min+'" max="'+max+'" step="'+step+'" style="width:74px;padding:4px 7px;border:0.5px solid var(--bd2);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);font-family:inherit">';
   }
   function selInput(id,val,opts){
     var optHtml=opts.map(function(o){return '<option value="'+o.v+'"'+(o.v===val?' selected':'')+'>'+o.l+'</option>';}).join('');
-    return '<select id="r_'+id+'" style="padding:3px 6px;border:0.5px solid var(--bd2);border-radius:6px;font-size:11px;background:var(--bg);color:var(--text);font-family:inherit">'+optHtml+'</select>';
+    return '<select id="r_'+id+'" style="padding:4px 7px;border:0.5px solid var(--bd2);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);font-family:inherit">'+optHtml+'</select>';
   }
   function chkInput(id,val,label){
-    return '<label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer"><input type="checkbox" id="r_'+id+'"'+(val?' checked':'')+' style="cursor:pointer"> '+label+'</label>';
+    return '<label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer"><input type="checkbox" id="r_'+id+'"'+(val?' checked':'')+' style="cursor:pointer;width:15px;height:15px"> '+label+'</label>';
   }
 
   // 0. 병동 정보
@@ -4216,30 +4498,35 @@ function renderRulesList(){
     var sr = _ps(sh, dt, 'senior', R.staffing.seniorPerShift);
     function n2(id,val,min,max){
       return '<input type="number" id="ps_'+id+'" value="'+val+'" min="'+min+'" max="'+max+'" '
-        +'style="width:42px;padding:2px 4px;border:0.5px solid var(--bd2);border-radius:5px;font-size:10px;text-align:center;background:var(--bg);color:var(--text);font-family:inherit">';
+        +'style="width:40px;padding:3px 4px;border:0.5px solid var(--bd2);border-radius:5px;font-size:12px;text-align:center;background:var(--bg);color:var(--text);font-family:inherit">';
     }
-    return '<td style="padding:3px 4px;text-align:center;white-space:nowrap">'
-      +n2(sh+'_'+dt+'_min', mn,0,15)+' <span style="color:var(--text3);font-size:9px">~</span> '
+    // 한 줄 가로 배치: 최소 ~ 최대 · 선임 N (상하 분리 제거)
+    return '<td style="padding:5px 6px;text-align:center;white-space:nowrap">'
+      +'<span style="display:inline-flex;align-items:center;gap:3px">'
+      +n2(sh+'_'+dt+'_min', mn,0,15)
+      +'<span style="color:var(--text3);font-size:11px">~</span>'
       +n2(sh+'_'+dt+'_max', mx,1,15)
-      +'<br><span style="font-size:8.5px;color:var(--text3)">선임</span> '
+      +'<span style="color:var(--bd2);margin:0 4px">│</span>'
+      +'<span style="font-size:11px;color:var(--text3)">선임</span>'
       +n2(sh+'_'+dt+'_senior', sr,0,5)
+      +'</span>'
       +'</td>';
   }
-  var shiftLabels = {D:'🌅 Day', E:'🌇 Eve', N:'🌙 Night'};
+  var shiftLabels = {D:'<span class="emoji">🌅</span> Day', E:'<span class="emoji">🌇</span> Eve', N:'<span class="emoji">🌙</span> Night'};
   var gridRows = ['D','E','N'].map(function(sh){
     return '<tr>'
-      +'<td style="padding:3px 6px;font-weight:600;font-size:10.5px;color:var(--text2)">'+shiftLabels[sh]+'</td>'
+      +'<td style="padding:5px 8px;font-weight:700;font-size:13px;color:var(--text)">'+shiftLabels[sh]+'</td>'
       +gridCell(sh,'weekday')
       +gridCell(sh,'weekend')
       +'</tr>';
   }).join('');
   var staffGrid =
-    '<div style="font-size:10px;color:var(--text3);margin-bottom:8px">교대별 · 평일/주말(+공휴일) 최소~최대 인원과 선임 수를 설정합니다. <b>주말 인원을 줄이면 주말 off가 늘어 off 총량이 조절됩니다.</b></div>'
-    +'<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6px">'
+    '<div style="font-size:12px;color:var(--text2);margin-bottom:9px;line-height:1.5">교대별 · 평일/주말(+공휴일) 최소~최대 인원과 선임 수를 설정합니다. <b>주말 인원을 줄이면 주말 off가 늘어 off 총량이 조절됩니다.</b></div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px">'
     +'<thead><tr style="background:var(--bg2)">'
-    +'<th style="padding:4px 6px;text-align:left;font-size:10px;color:var(--text2)">교대</th>'
-    +'<th style="padding:4px;font-size:10px;color:var(--text2)">평일 (최소~최대 / 선임)</th>'
-    +'<th style="padding:4px;font-size:10px;color:var(--text2)">주말·공휴일 (최소~최대 / 선임)</th>'
+    +'<th style="padding:5px 8px;text-align:left;font-size:12px;font-weight:700;color:var(--text)">교대</th>'
+    +'<th style="padding:5px;font-size:12px;font-weight:700;color:var(--text)">평일 (최소~최대 / 선임)</th>'
+    +'<th style="padding:5px;font-size:12px;font-weight:700;color:var(--text)">주말·공휴일</th>'
     +'</tr></thead>'
     +'<tbody>'+gridRows+'</tbody>'
     +'</table>';
@@ -4247,7 +4534,7 @@ function renderRulesList(){
   html+=section('교대 인력 구성 (평일/주말 분리)','👥',
     _diag
     + staffGrid
-    +'<div style="font-size:10px;color:var(--text3);margin-top:6px">💡 off가 일부에게 쏠리면 주말 최소인원을 낮춰보세요. 위 진단의 권장 인원도 참고하세요.</div>'
+    +'<div style="font-size:12px;color:var(--text3);margin-top:7px"><span class="emoji">💡</span> off가 일부에게 쏠리면 주말 최소인원을 낮춰보세요. 위 진단의 권장 인원도 참고하세요.</div>'
   );
 
   // 2. 연속 근무 규칙
@@ -5008,6 +5295,7 @@ function addNurse(){
     vacTotal:parseInt(document.getElementById('aV').value)||15,color:addColor,
     prefs:{shift:{D:0,E:0,N:0},avoidWith:[],preferWith:[]},
     attributes:{pregnant:false,nightDedicated:false,nightExempt:false,fixedShift:null,preceptorOf:[],targetOffOverride:null},
+    carryOver:{offBalance:0},
     manualOrder:maxOrd+1});
   document.getElementById('aN').value='';document.getElementById('aJ').value='';document.getElementById('aV').value='15';
   render();
@@ -5382,6 +5670,9 @@ function loadLocal(){
     if(!Array.isArray(n.attributes.preceptorOf)) n.attributes.preceptorOf=[];
     // v6.2: off 정량 사람별 조정 (null=자동, 숫자=덮어쓰기)
     if(n.attributes.targetOffOverride===undefined) n.attributes.targetOffOverride=null;
+    // v6.4: off 이월 잔고 (월마감 시 누적, 다음 달 target에 반영)
+    if(!n.carryOver || typeof n.carryOver!=='object') n.carryOver={offBalance:0};
+    if(typeof n.carryOver.offBalance!=='number') n.carryOver.offBalance=0;
   });
 }
 
