@@ -29,6 +29,8 @@
   --r:8px;--rl:12px;
   --blue:#1E6DBF;--green:#1A8C62;--purple:#5B44C8;--gray:#686864;--orange:#C0781A;
   --today:#378ADD;
+  /* v3.13: 시프트 의미 색 (B안 — 한국 관행, 따뜻한 톤). D=초록 E=분홍 N=보라 O=웜그레이 */
+  --sh-d:#2EA875;--sh-e:#E8607E;--sh-n:#7C5FD3;--sh-o:#B0ABA0;--sh-m:#4A95D6;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:13px;color:var(--text);background:var(--bg);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
@@ -130,10 +132,20 @@ thead th.tdh{background:rgba(100,210,80,.25)!important;color:#2a7a10!important;f
 /* today: top accent only on each cell individually — no full-column stripe */
 
 
-.sb{height:22px;width:26px;margin:0 auto;border-radius:3px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;letter-spacing:.3px;}
-.sb:hover{opacity:.72;}
-.sb.empty{background:var(--bg3);opacity:.18;cursor:default;}
-.sb.empty:hover{opacity:.18;}
+.sb{height:24px;width:24px;margin:0 auto;border-radius:50%;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;letter-spacing:.2px;box-shadow:0 1px 2px rgba(0,0,0,.12);transition:transform .08s;}
+.sb:hover{opacity:.78;transform:scale(1.08);}
+.sb.empty{background:var(--bg3);opacity:.16;cursor:default;box-shadow:none;}
+.sb.empty:hover{opacity:.16;transform:none;}
+/* v3.13: 하단 날짜별 통계 행 (dutymate 스타일) */
+tfoot#tFoot td{text-align:center;font-size:10px;font-weight:700;padding:2px 0;border-top:0.5px solid var(--bd);}
+tfoot#tFoot td.dsl{text-align:right;padding-right:8px;font-size:10px;font-weight:700;}
+tfoot#tFoot tr.dsTotal td{border-top:1.5px solid var(--bd2);font-weight:800;}
+tfoot#tFoot td.understaff{color:#C0392B;background:rgba(226,75,74,.10);}
+tfoot#tFoot td.dsD{color:#1F8A5E;} tfoot#tFoot td.dsE{color:#C4456A;} tfoot#tFoot td.dsN{color:#6248BD;} tfoot#tFoot td.dsO{color:#8E897E;}
+.fix-badge:hover{transform:scale(1.12);}
+/* v3.13: 경고 느낌표 배지 — 셀 좌상단(락 핀과 안 겹침) */
+td.dc{position:relative;}
+.warn-mark{position:absolute;top:0;left:1px;width:12px;height:12px;border-radius:50%;color:#fff;font-size:9px;font-weight:900;line-height:12px;text-align:center;pointer-events:none;box-shadow:0 0 0 1.5px #fff;z-index:3;}
 /* 충돌 경고 셀: 좌측 라인 대신 시프트바 테두리+글로우로 표시 (연속 셀에서도 또렷이 구분) */
 td.wcell{background:rgba(226,75,74,.06)!important;}
 td.wcell .sb:not(.empty){box-shadow:inset 0 0 0 1.5px #E24B4A, 0 0 0 1px rgba(226,75,74,.35);}
@@ -363,7 +375,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
         <button onclick="dismissDemoBanner()" style="padding:3px 10px;background:var(--bg);border:0.5px solid #F0C690;border-radius:4px;font-size:10px;color:#791F1F;cursor:pointer;font-family:inherit;flex-shrink:0">알겠습니다 ✓</button>
       </div>
     </div>
-    <table id="tbl"><thead id="tHead"></thead><tbody id="tBody"></tbody></table>
+    <table id="tbl"><thead id="tHead"></thead><tbody id="tBody"></tbody><tfoot id="tFoot"></tfoot></table>
     <div class="stats-row" id="sRow"></div>
     <div class="off-info" id="offInfo"></div>
   </div>
@@ -608,7 +620,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span id="aboutVersion">Version 3.12.0 · Public Release</span>
+        <span id="aboutVersion">Version 3.13.0 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -796,7 +808,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
             <li><b>신규간호사</b>: 야간 단독 배치 금지, 월 야간 한도 등 보호 규칙 적용</li>
           </ul>
           <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">선호도</h3>
-          <p style="margin:0">카드 펼치기 → "근무 선호도"에서 D/E/N 별 +/− 가중치, "함께 근무 선호/회피" 인원 지정</p>
+          <p style="margin:0">간호사를 클릭하면 현재 설정된 정보가 요약 표시됩니다(활성 항목만). <b>✎ 편집</b>을 누르면 이름·직급·특수속성·교대 선호도(D/E/N 배지 클릭: 중립→선호→기피)·파트너·사진·색상 등 전체 항목을 수정할 수 있습니다. 접힌 카드에서도 임산부🤰·고정근무 등은 아이콘으로 요약 표시됩니다.</p>
         </section>
 
         <!-- ── 특수 속성 ── -->
@@ -820,12 +832,12 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
           <h2 style="font-size:16px;font-weight:700;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--bd2)">🎨 듀티 입력 · 수정</h2>
           <p><b>시프트 종류 (5가지):</b></p>
           <ul style="padding-left:18px;margin:6px 0">
-            <li><b style="color:#1E6DBF">D</b> Day · 07:00-15:00</li>
-            <li><b style="color:#1A8C62">E</b> Eve · 15:00-23:00</li>
-            <li><b style="color:#5B44C8">N</b> Night · 23:00-07:00</li>
-            <li><b style="color:#686864">O</b> Off (통합)</li>
+            <li><b style="color:#1F8A5E">D</b> Day · 07:00-15:00</li>
+            <li><b style="color:#C4456A">E</b> Eve · 15:00-23:00</li>
+            <li><b style="color:#6248BD">N</b> Night · 23:00-07:00</li>
+            <li><b style="color:#8E897E">O</b> Off (통합)</li>
             <li><b style="color:#C0781A">V</b> 연차 (잔여에서 차감)</li>
-            <li><b style="color:#C2185B">B</b> 경조/공가 등 특별휴가 (off 정량과 별개)</li>
+            <li><b style="color:#C44569">B</b> 경조/공가 등 특별휴가 (off 정량과 별개)</li>
           </ul>
           <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">입력 방법</h3>
           <ol style="padding-left:18px;margin:0">
@@ -962,7 +974,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
           <p>모든 규칙 위반은 실시간으로 검출되어 표시됩니다. 경고는 강제가 아닌 안내입니다 — 수동 배정은 언제든 가능합니다.</p>
           <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">표시 방식</h3>
           <ul style="padding-left:18px;margin:0">
-            <li><b>경고 셀</b>: 시프트 박스에 <span style="color:#E24B4A;font-weight:700">빨간 테두리+글로우</span> (선호위반은 주황) — 연속 셀에서도 각 셀이 또렷하게 구분</li>
+            <li><b>경고 셀</b>: 시프트 박스에 <span style="color:#E24B4A;font-weight:700">빨간 테두리+글로우</span>와 좌상단 <span style="color:#E24B4A;font-weight:900">!</span> 표시 (선호위반은 주황) — 한눈에 어느 셀이 문제인지 보입니다</li>
             <li><b>호버 툴팁</b>: 경고 셀에 마우스를 올리면 "⚠ 무엇이 문제인지 + 어떻게 고칠지" 권고 표시</li>
             <li><b>통계 행</b>: 위반 수 클릭으로 상세 목록</li>
             <li><b>⚠️ 경고 모달</b>: 상단 워닝 버튼 → 종류별 그룹화 보기 (위험/주의 순)</li>
@@ -1210,19 +1222,30 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
 
 <script>
 const SHIFTS=[
-  {code:'D',label:'Day',  color:'#1E6DBF',bg:'#d4e8fb',desc:'07:00-15:00'},
-  {code:'E',label:'Eve',  color:'#1A8C62',bg:'#d2f0e3',desc:'15:00-23:00'},
-  {code:'N',label:'Night',color:'#5B44C8',bg:'#e8e4fb',desc:'23:00-07:00'},
-  {code:'O',label:'Off',  color:'#686864',bg:'#ebebea',desc:'Off (통합)'},
-  {code:'V',label:'연차', color:'#C0781A',bg:'#faeeda',desc:'연차 (잔여에서 차감)'},
-  {code:'B',label:'경조', color:'#C2185B',bg:'#fce4ec',desc:'경조/공가 등 특별휴가 (off 정량 제외)'},
+  {code:'D',label:'Day',  color:'#2EA875',bg:'#dcf2e8',desc:'07:00-15:00'},
+  {code:'E',label:'Eve',  color:'#E8607E',bg:'#fbe1e8',desc:'15:00-23:00'},
+  {code:'N',label:'Night',color:'#7C5FD3',bg:'#e8e2f7',desc:'23:00-07:00'},
+  {code:'O',label:'Off',  color:'#B0ABA0',bg:'#eeecE7',desc:'Off (통합)'},
+  {code:'V',label:'연차', color:'#E2941C',bg:'#fbeed6',desc:'연차 (잔여에서 차감)'},
+  {code:'B',label:'경조', color:'#C44569',bg:'#f8e0e8',desc:'경조/공가 등 특별휴가 (off 정량 제외)'},
 ];
 const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A085','#D4AC0D','#1E6DBF','#5B44C8','#2C3E50','#686864'];
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.12.0';
+const APP_VERSION = '3.13.0';
 const UPDATE_NOTES = [
+  { v:'3.13.0', date:'2026-05', items:[
+    '🎨 시프트 색상 개편 — 한국 간호 관행 + 따뜻한 톤 (D초록·E분홍·N보라·O웜그레이), 원형 배지',
+    '📊 하단 날짜별 통계 행 — 매일 DAY/EVE/NIGHT/OFF 인원수 + 최소인원 미달 빨간 경고',
+    '👤 간호사 카드 보기/편집 분리 — 클릭하면 활성 정보만 요약, ✎편집을 눌러야 전체 폼',
+    '🤰 듀티표에 임산부·야간전담·야간면제 아이콘 — 직급 옆에 표시해 야간 배치 판단 즉시 인지',
+    '❗ 경고 셀 느낌표 마크 — 테두리+글로우에 더해 한눈에 위반 셀 식별',
+    '👑 수간호사 선임 포함 토글 — 규칙설정에서 수간호사를 선임 정원에 포함 선택 가능',
+    '🔧 고정근무 시프트 아이콘 토글 — 텍스트 칩 → 색 배지로 간결하게',
+    '🗂️ 규칙 백업 일원화 — 규칙 전용 파일 제거, 듀티 파일(↑파일저장)에 규칙 포함',
+    '🏥 다병동 대비 데이터 격리 기반 정비 — 저장 키 일관화(향후 서버 이식 대비)',
+  ]},
   { v:'3.12.0', date:'2026-05', items:[
     '🎨 캘린더 헤더 상단정렬 — 공휴일·이벤트가 붙어도 날짜 라인 고정',
     '🔴 배치경고 표시 개선 — 좌측 레드라인 → 시프트 테두리 하이라이트+글로우 (연속 셀도 또렷하게 구분)',
@@ -1584,7 +1607,7 @@ function renderReport(){
   var rows=data.rows, tot=data.totals, nd=data.nd;
   var MKO2=MKO;
 
-  var SHIFT_COLORS={D:'#1E6DBF',E:'#1A8C62',N:'#5B44C8',O:'#686864',V:'#C0781A',B:'#C2185B'};
+  var SHIFT_COLORS={D:'#2EA875',E:'#E8607E',N:'#7C5FD3',O:'#B0ABA0',V:'#E2941C',B:'#C44569'};
 
   // ── 헤더 요약 카드들
   var total=rows.length*nd;
@@ -1606,12 +1629,12 @@ function renderReport(){
   html+='<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:11px">';
   html+='<thead><tr style="background:var(--bg2)">'
     +'<th style="padding:6px 8px;text-align:left;border-bottom:0.5px solid var(--bd2);min-width:80px">간호사</th>'
-    +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#1E6DBF">D</th>'
-    +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#1A8C62">E</th>'
-    +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#5B44C8">N</th>'
-    +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#686864">Off</th>'
+    +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#1F8A5E">D</th>'
+    +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#C4456A">E</th>'
+    +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#6248BD">N</th>'
+    +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#8E897E">Off</th>'
     +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#C0781A">연차</th>'
-    +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#C2185B">경조</th>'
+    +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#C44569">경조</th>'
     +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2)">주말근무</th>'
     +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2)">Off<br><span style="font-size:8px;color:var(--text3)">실제/목표</span></th>'
     +'<th style="padding:6px 4px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#C2185B">이월</th>'
@@ -1634,8 +1657,8 @@ function renderReport(){
         +'<div style="font-size:9px;color:var(--text3)">'+r.role+' · '+r.yr+'년차</div>'
       +'</td>'
       +'<td style="text-align:center;padding:5px 4px;border-bottom:0.5px solid var(--bd);font-weight:600;color:#1E6DBF">'+r.D+'</td>'
-      +'<td style="text-align:center;padding:5px 4px;border-bottom:0.5px solid var(--bd);font-weight:600;color:#1A8C62">'+r.E+'</td>'
-      +'<td style="text-align:center;padding:5px 4px;border-bottom:0.5px solid var(--bd);font-weight:600;color:#5B44C8">'+r.N+'</td>'
+      +'<td style="text-align:center;padding:5px 4px;border-bottom:0.5px solid var(--bd);font-weight:600;color:#C4456A">'+r.E+'</td>'
+      +'<td style="text-align:center;padding:5px 4px;border-bottom:0.5px solid var(--bd);font-weight:600;color:#6248BD">'+r.N+'</td>'
       +'<td style="text-align:center;padding:5px 4px;border-bottom:0.5px solid var(--bd)">'+r.O+'</td>'
       +'<td style="text-align:center;padding:5px 4px;border-bottom:0.5px solid var(--bd);color:#C0781A">'+r.V+'</td>'
       +'<td style="text-align:center;padding:5px 4px;border-bottom:0.5px solid var(--bd);color:#C2185B">'+(r.B||0)+'</td>'
@@ -1658,8 +1681,8 @@ function renderReport(){
   html+='<tr style="background:var(--bg3);font-weight:700">'
     +'<td style="padding:5px 8px">합계</td>'
     +'<td style="text-align:center;padding:5px 4px;color:#1E6DBF">'+tot.D+'</td>'
-    +'<td style="text-align:center;padding:5px 4px;color:#1A8C62">'+tot.E+'</td>'
-    +'<td style="text-align:center;padding:5px 4px;color:#5B44C8">'+tot.N+'</td>'
+    +'<td style="text-align:center;padding:5px 4px;color:#C4456A">'+tot.E+'</td>'
+    +'<td style="text-align:center;padding:5px 4px;color:#6248BD">'+tot.N+'</td>'
     +'<td style="text-align:center;padding:5px 4px">'+tot.O+'</td>'
     +'<td style="text-align:center;padding:5px 4px;color:#C0781A">'+tot.V+'</td>'
     +'<td colspan="5"></td></tr>';
@@ -1674,7 +1697,7 @@ function renderReport(){
     html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
       +'<span style="font-size:10px;min-width:55px;text-align:right;color:var(--text2)">'+r.name+'</span>'
       +'<div style="flex:1;display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--bg3)">';
-    [{k:'D',col:'#1E6DBF'},{k:'E',col:'#1A8C62'},{k:'N',col:'#5B44C8'}].forEach(function(s){
+    [{k:'D',col:'#2EA875'},{k:'E',col:'#E8607E'},{k:'N',col:'#7C5FD3'}].forEach(function(s){
       var pct2=work?Math.round(r[s.k]/work*100):0;
       if(pct2>0) html+='<div style="width:'+pct2+'%;background:'+s.col+';display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700" title="'+s.k+' '+r[s.k]+'일">'+(pct2>8?r[s.k]:'')+'</div>';
     });
@@ -2086,6 +2109,7 @@ let selShift=SHIFTS[0];
 let wantedMode=false;
 let addColor=NCOLS[0];
 let selNid=null;
+let editNid=null;  // v3.13: 편집 모드인 간호사 id (null이면 보기 모드)
 let cy=new Date().getFullYear();
 let cm=new Date().getMonth();
 let dragSrc=null;
@@ -3984,7 +4008,7 @@ function render(){
     if(n.birthday){var bp=n.birthday.split('-');isBday=parseInt(bp[1])===cm+1;}
     var bdayIcon=isBday?' 🎂':'';
     tb+='<tr><td class="ncell" onclick="onNameClick('+n.id+')">'
-      +'<div class="nl1">'+photoHTML(n,'sm')+'<span class="nn">'+n.name+bdayIcon+'</span><span class="nbadge" style="background:'+RBG[n.role]+';color:'+RCOL[n.role]+'">'+n.role+'</span></div>'
+      +'<div class="nl1">'+photoHTML(n,'sm')+'<span class="nn">'+n.name+bdayIcon+'</span><span class="nbadge" style="background:'+RBG[n.role]+';color:'+RCOL[n.role]+'">'+n.role+'</span>'+dutyAttrIcons(n)+'</div>'
       +'<div class="nl2">'+offPill+vacPill+'</div>'
       +'</td>';
     for(var d=1;d<=nd;d++){
@@ -4035,6 +4059,9 @@ function render(){
       tb+='<td class="'+dcls+tCls2+wc+pw+lockCls+'" id="c-'+n.id+'-'+d+'"'+titleAttr+' onclick="onCell('+n.id+','+d+')" onmousedown="onCellDown(event,'+n.id+','+d+')" onmouseenter="onCellEnter('+n.id+','+d+')" ondragover="onDov(event,'+n.id+','+d+')" ondrop="onDrop(event,'+n.id+','+d+')" ondragleave="onDlv(event)">';
       if(s){
         tb+='<div class="sb" style="background:'+s.color+';color:#fff" draggable="true" ondragstart="onDst(event,'+n.id+','+d+',\''+code+'\')">'+code+'</div>';
+        // v3.13: 경고 셀에 느낌표 아이콘 (충돌=빨강, 선호위반=주황) — 시각적 직관성 강화
+        if(wc) tb+='<div class="warn-mark" style="background:#E24B4A" title="배치 규칙 위반">!</div>';
+        else if(pw) tb+='<div class="warn-mark" style="background:#E67E22" title="선호 위반">!</div>';
       } else {
         tb+='<div class="sb empty">·</div>';
       }
@@ -4045,6 +4072,7 @@ function render(){
   });
   document.getElementById('tBody').innerHTML=tb;
   renderStats(cf, _pvList);
+  renderDayStats();
   if(document.getElementById('sPanel').classList.contains('open')) renderCards();
   // v3.7: 원티드 모드 UI 상태 동기화 (카운트 갱신 포함)
   applyWantedModeUI();
@@ -4070,6 +4098,55 @@ function render(){
   saveLocal();
 }
 
+// v3.13: 하단 날짜별 통계 행 (dutymate 스타일) — 각 날짜의 D/E/N/O 인원 + 최소인원 미달 경고
+function renderDayStats(){
+  var nd=ndays(cy,cm);
+  var foot=document.getElementById('tFoot');
+  if(!foot) return;
+  // 날짜별 시프트 카운트 집계
+  var cnt={};  // cnt[d] = {D,E,N,O,sr_by_sh}
+  for(var d=1;d<=nd;d++){
+    var c={D:0,E:0,N:0,O:0,srD:0,srE:0,srN:0};
+    nurses.forEach(function(n){
+      var s=schedule[key(n.id,d)];
+      if(s==='D'){c.D++; if(isSenior(n))c.srD++;}
+      else if(s==='E'){c.E++; if(isSenior(n))c.srE++;}
+      else if(s==='N'){c.N++; if(isSenior(n))c.srN++;}
+      else if(s==='O')c.O++;
+    });
+    cnt[d]=c;
+  }
+  // 최소인원 미달 판정 (해당 시프트의 인원이 기준 min 미만이면 경고색)
+  function under(d,sh){
+    var c=cnt[d];
+    var total = sh==='D'?c.D : sh==='E'?c.E : c.N;
+    var st = RULES.staffingFor(sh, isWH(cy,cm,d));   // {min,max,senior}
+    if(!st) return false;
+    return total < (st.min||0);
+  }
+  function rowFor(label,shKey,cls){
+    var tds='<td class="dsl '+cls+'">'+label+'</td>';
+    for(var d=1;d<=nd;d++){
+      var c=cnt[d];
+      var v = shKey==='D'?c.D : shKey==='E'?c.E : shKey==='N'?c.N : c.O;
+      var u = (shKey!=='O' && under(d,shKey)) ? ' understaff' : '';
+      tds+='<td class="'+cls+u+'"'+(u?' title="최소 인원 미달"':'')+'>'+v+'</td>';
+    }
+    return '<tr>'+tds+'</tr>';
+  }
+  var totalRow='<td class="dsl">TOTAL</td>';
+  for(var d2=1;d2<=nd;d2++){
+    var c2=cnt[d2];
+    totalRow+='<td>'+(c2.D+c2.E+c2.N+c2.O)+'</td>';
+  }
+  foot.innerHTML =
+      rowFor('DAY','D','dsD')
+    + rowFor('EVE','E','dsE')
+    + rowFor('NIGHT','N','dsN')
+    + rowFor('OFF','O','dsO')
+    + '<tr class="dsTotal">'+totalRow+'</tr>';
+}
+
 function renderStats(cf, pvList){
   pvList=pvList||[];
   var nd=ndays(cy,cm);
@@ -4082,10 +4159,10 @@ function renderStats(cf, pvList){
   var pct=tot?Math.round((tot-emp)/tot*100):0;
   var wc=cf?cf.length:0;
   document.getElementById('sRow').innerHTML=
-    '<div class="stc" onclick="showStat(\'D\')"><div class="stn" style="color:var(--blue)">'+D+'</div><div class="stl">Day ▸</div></div>'
-    +'<div class="stc" onclick="showStat(\'E\')"><div class="stn" style="color:var(--green)">'+E+'</div><div class="stl">Eve ▸</div></div>'
-    +'<div class="stc" onclick="showStat(\'N\')"><div class="stn" style="color:var(--purple)">'+N+'</div><div class="stl">Night ▸</div></div>'
-    +'<div class="stc" onclick="showStat(\'O\')"><div class="stn" style="color:var(--gray)">'+O+'</div><div class="stl">Off ▸</div></div>'
+    '<div class="stc" onclick="showStat(\'D\')"><div class="stn" style="color:var(--sh-d)">'+D+'</div><div class="stl">Day ▸</div></div>'
+    +'<div class="stc" onclick="showStat(\'E\')"><div class="stn" style="color:var(--sh-e)">'+E+'</div><div class="stl">Eve ▸</div></div>'
+    +'<div class="stc" onclick="showStat(\'N\')"><div class="stn" style="color:var(--sh-n)">'+N+'</div><div class="stl">Night ▸</div></div>'
+    +'<div class="stc" onclick="showStat(\'O\')"><div class="stn" style="color:var(--sh-o)">'+O+'</div><div class="stl">Off ▸</div></div>'
     +'<div class="stc" onclick="showStat(\'V\')"><div class="stn" style="color:var(--orange)">'+V+'</div><div class="stl">연차(이달) ▸</div></div>'
     +'<div class="stc"><div class="stn">'+pct+'%</div><div class="stl">완료율</div></div>'
     +(function(){
@@ -4112,7 +4189,7 @@ function renderStats(cf, pvList){
 function showWarn(){
   var cf=conflicts();
   if(!cf.length){showToast('배치 경고 없음');return;}
-  var sc={D:'#1E6DBF',E:'#1A8C62',N:'#5B44C8'};
+  var sc={D:'#2EA875',E:'#E8607E',N:'#7C5FD3'};
   var TYPE_ICON={
     'staffing':'👥','newNurse-noNightAlone':'🔰','newNurse-consecNight':'🔰',
     'newNurse-noSenior':'🔰','newNurse-nightLimit':'🔰'
@@ -4160,7 +4237,7 @@ function showWarn(){
     }).join('');
   }
   if(nightIssues.length){
-    html+='<div style="font-size:10px;font-weight:700;color:#5B44C8;margin:10px 0 4px">🌙 야간 규칙 위반 ('+nightIssues.length+')</div>';
+    html+='<div style="font-size:10px;font-weight:700;color:#6248BD;margin:10px 0 4px">🌙 야간 규칙 위반 ('+nightIssues.length+')</div>';
     html+=sortBySev(nightIssues).map(function(ci){
       return '<div class="wrow"><span style="font-size:11px;color:var(--text2)">'+(ci.msg||ci.type)+'</span></div>';
     }).join('');
@@ -4833,25 +4910,26 @@ function partnerScore(n1, n2) {
 // 선호도 UI 렌더
 function renderPrefUI(n) {
   var p = getPrefs(n);
-  var SHIFT_LABELS = {D:'Day', E:'Eve', N:'Night'};
-  var shiftRows = ['D','E','N'].map(function(sh) {
-    var val = p.shift[sh];
-    return '<div class="pref-row">'
-      +'<span class="pref-label">'+SHIFT_LABELS[sh]+'</span>'
-      +'<div class="pref-chips">'
-      +['prefer','neutral','avoid'].map(function(type, i) {
-        var v = i===0?1:i===1?0:-1;
-        var lbl = i===0?'선호':i===1?'중립':'기피';
-        var active = val===v;
-        return '<span class="pref-chip '+(active?type:'')+'" onclick="event.stopPropagation();setPrefShift('+n.id+',&quot;'+sh+'&quot;,'+v+')">'+lbl+'</span>';
-      }).join('')
-      +'</div>'
-      +'</div>';
+  // v3.13: D/E/N 배지를 클릭으로 3-state 순환 (중립→선호→기피). 한 줄로 압축.
+  var SHC = {D:'#2EA875', E:'#E8607E', N:'#7C5FD3'};
+  var shiftBadges = ['D','E','N'].map(function(sh){
+    var val = p.shift[sh]||0;
+    var on = val!==0;
+    var c = SHC[sh];
+    // 선호=색채움+👍, 기피=색테두리+✕(흰바탕), 중립=흐림
+    var style, mark='';
+    if(val===1){ style='background:'+c+';color:#fff;border:1.5px solid '+c+';box-shadow:0 1px 3px rgba(0,0,0,.18)'; mark='<span style="position:absolute;top:-4px;right:-4px;font-size:9px">👍</span>'; }
+    else if(val===-1){ style='background:var(--bg);color:'+c+';border:1.5px solid '+c; mark='<span style="position:absolute;top:-4px;right:-4px;font-size:8px">✕</span>'; }
+    else { style='background:var(--bg2);color:var(--text3);border:1.5px solid var(--bd2);opacity:.55'; }
+    return '<span title="'+sh+' — 클릭: 중립→선호→기피" '
+      +'onclick="event.stopPropagation();cyclePrefShift('+n.id+',&quot;'+sh+'&quot;)" '
+      +'style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:11px;font-weight:800;cursor:pointer;user-select:none;'+style+'">'
+      +sh+mark+'</span>';
   }).join('');
 
   // 파트너 선호도 (수간호사 제외, 자기 자신 제외)
   var others = nurses.filter(function(x){ return x.id!==n.id && x.role!=='수간호사'; });
-  var partnerRows = others.length ? '<div class="pref-row" style="align-items:flex-start">'
+  var partnerRows = others.length ? '<div class="pref-row" style="align-items:flex-start;margin-top:7px">'
     +'<span class="pref-label" style="margin-top:3px">파트너</span>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px">'
     +others.map(function(o) {
@@ -4864,11 +4942,14 @@ function renderPrefUI(n) {
     +'</div></div>' : '';
 
   return '<div class="efr full" style="margin-bottom:4px">'
-    +'<label>근무 선호도 <span style="color:var(--text3);font-weight:400">(클릭으로 설정)</span></label>'
-    +'<div style="margin-top:6px">'
-    +shiftRows
+    +'<label>근무 선호도 <span style="color:var(--text3);font-weight:400">(배지 클릭: 중립→선호→기피)</span></label>'
+    +'<div style="display:flex;align-items:center;gap:7px;margin-top:6px">'
+    +'<span style="font-size:10px;color:var(--text3)">교대</span>'
+    +shiftBadges
+    +'<span style="font-size:9.5px;color:var(--text3);margin-left:4px">👍선호 · ✕기피</span>'
+    +'</div>'
     +partnerRows
-    +'</div></div>';
+    +'</div>';
 }
 
 // v3.5: 간호사 속성 UI ─────────────────────────────────────────────────
@@ -4886,19 +4967,21 @@ function renderAttrUI(n){
       +'background:'+bg+';color:'+col+';border:1px solid '+bd+'">'
       +(on?'✓ ':'')+label+'</span>';
   }
-  // 고정 시프트 (D/E/N/없음)
-  function fixedChip(sh, label){
+  // 고정 시프트 (D/E/N/없음) — 시프트 아이콘(원형 배지) 토글 방식 (v3.13)
+  function fixedChip(sh){
     var on = a.fixedShift === sh;
-    var c = sh==='D' ? '#1E6DBF' : sh==='E' ? '#1A8C62' : '#5B44C8';
-    return '<span class="attr-chip" '
+    var c = sh==='D' ? '#2EA875' : sh==='E' ? '#E8607E' : '#7C5FD3';
+    var lbl = sh==='D'?'Day':sh==='E'?'Eve':'Night';
+    return '<span class="fix-badge" title="'+lbl+' 고정 — 이 시프트만 배정" '
       +'onclick="event.stopPropagation();setFixedShift('+n.id+',&quot;'+sh+'&quot;)" '
-      +'style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:600;cursor:pointer;user-select:none;'
-      +'background:'+(on?c:'var(--bg)')+';color:'+(on?'#fff':'var(--text2)')+';border:1px solid '+(on?c:'var(--bd2)')+'">'
-      +(on?'✓ ':'')+label+'</span>';
+      +'style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:11px;font-weight:800;cursor:pointer;user-select:none;transition:transform .08s;'
+      +'background:'+(on?c:'var(--bg2)')+';color:'+(on?'#fff':'var(--text3)')+';border:1.5px solid '+(on?c:'var(--bd2)')+';'+(on?'box-shadow:0 1px 3px rgba(0,0,0,.18);':'opacity:.6;')+'">'
+      +sh+'</span>';
   }
   var fixedClear = a.fixedShift ?
     '<span class="attr-chip" onclick="event.stopPropagation();setFixedShift('+n.id+',null)" '
-    +'style="display:inline-flex;padding:3px 9px;border-radius:12px;font-size:10px;cursor:pointer;background:var(--bg2);color:var(--text3);border:1px solid var(--bd2)">해제</span>'
+    +'title="고정 해제" '
+    +'style="display:inline-flex;align-items:center;padding:0 8px;height:26px;border-radius:13px;font-size:10px;cursor:pointer;background:var(--bg2);color:var(--text3);border:1px solid var(--bd2)">해제</span>'
     : '';
 
   // 프리셉터-프리셉티 페어링 UI
@@ -4962,14 +5045,14 @@ function renderAttrUI(n){
     +'<label>특수 속성 <span style="color:var(--text3);font-weight:400">(자동배치 시 반영)</span></label>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">'
     +chip('pregnant',      '🤰 임산부',     '#C0392B', '임산부 — 야간 금지, 동시 배치 회피')
-    +chip('nightDedicated','🌙 야간전담',   '#5B44C8', '야간전담 간호사 — 야간만 배치')
+    +chip('nightDedicated','🌙 야간전담',   '#7C5FD3', '야간전담 간호사 — 야간만 배치')
     +chip('nightExempt',   '🚫 야간면제',   '#C0781A', '건강상 사유 등으로 야간 면제')
     +'</div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;align-items:center">'
+    +'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center">'
     +'<span style="font-size:10px;color:var(--text3);margin-right:3px">고정 근무:</span>'
-    +fixedChip('D','Day 고정')
-    +fixedChip('E','Eve 고정')
-    +fixedChip('N','Night 고정')
+    +fixedChip('D')
+    +fixedChip('E')
+    +fixedChip('N')
     +fixedClear
     +'</div>'
     +preceptorRow
@@ -5046,6 +5129,14 @@ function setPrefShift(nid, sh, val) {
   if(!n) return;
   getPrefs(n).shift[sh] = val;
   saveLocal(); renderCards(); setTimeout(initMemoHeights,30);
+}
+// v3.13: 시프트 선호 3-state 순환 (중립 0 → 선호 1 → 기피 -1 → 중립)
+function cyclePrefShift(nid, sh){
+  var n = nurses.find(function(x){ return x.id===nid; });
+  if(!n) return;
+  var cur = getPrefs(n).shift[sh] || 0;
+  var next = cur===0 ? 1 : cur===1 ? -1 : 0;
+  setPrefShift(nid, sh, next);
 }
 
 function cyclePrefPartner(nid, otherId) {
@@ -5925,6 +6016,84 @@ function togglePanel(){
   if(p.classList.contains('open')){renderCards();renderAddCG();setTimeout(initMemoHeights,30);}
 }
 
+// v3.13: 카드 보기 모드 — 활성화된 정보만 텍스트로 표시 (편집 폼 아님)
+function renderViewMode(n){
+  var a = n.attributes || {};
+  var p = (n.prefs) ? n.prefs : {shift:{},avoidWith:[],preferWith:[]};
+  var rows = [];
+  function row(label, val){ rows.push('<div style="display:flex;gap:8px;font-size:11px;padding:2px 0"><span style="color:var(--text3);min-width:64px;flex-shrink:0">'+label+'</span><span style="color:var(--text);flex:1">'+val+'</span></div>'); }
+
+  // 기본정보 (항상 표시)
+  row('입사일', n.joinDate ? (n.joinDate+' · '+yrs(n.joinDate)+'년차') : '<span style="color:var(--text3)">미입력</span>');
+  if(n.birthday) row('생일', '🎂 '+n.birthday);
+  row('연차', '연간 '+(n.vacTotal||0)+'일');
+  if(n.memo) row('메모', n.memo);
+
+  // 활성 속성만
+  var attrs = [];
+  if(a.pregnant)       attrs.push('🤰 임산부');
+  if(a.nightDedicated) attrs.push('🌙 야간전담');
+  if(a.nightExempt)    attrs.push('🚫 야간면제');
+  if(a.fixedShift)     attrs.push((a.fixedShift==='D'?'Day':a.fixedShift==='E'?'Eve':'Night')+' 고정');
+  if(attrs.length) row('특수속성', attrs.join(' · '));
+
+  // 프리셉터 관계
+  if(Array.isArray(a.preceptorOf) && a.preceptorOf.length){
+    var names = a.preceptorOf.map(function(id){var x=nurses.find(function(y){return y.id===id;});return x?x.name:'';}).filter(Boolean);
+    if(names.length) row('🎓 프리셉티', names.join(', '));
+  }
+
+  // 활성 선호도만 (중립 제외)
+  var sh = p.shift||{};
+  var prefShifts = [];
+  ['D','E','N'].forEach(function(s){
+    if(sh[s]===1) prefShifts.push(s+' 선호');
+    else if(sh[s]===-1) prefShifts.push(s+' 기피');
+  });
+  if(prefShifts.length) row('교대 선호', prefShifts.join(' · '));
+  if((p.preferWith||[]).length){
+    var pw = p.preferWith.map(function(id){var x=nurses.find(function(y){return y.id===id;});return x?x.name:'';}).filter(Boolean);
+    if(pw.length) row('👍 파트너', pw.join(', '));
+  }
+  if((p.avoidWith||[]).length){
+    var aw = p.avoidWith.map(function(id){var x=nurses.find(function(y){return y.id===id;});return x?x.name:'';}).filter(Boolean);
+    if(aw.length) row('✕ 기피', aw.join(', '));
+  }
+
+  return '<div style="padding:2px 0">'+rows.join('')+'</div>'
+    +'<div class="efa" onclick="event.stopPropagation()" style="margin-top:8px">'
+    +'<button class="btn sm" onclick="startEdit('+n.id+')">✎ 편집</button>'
+    +'<button class="btn red sm" onclick="delNurse('+n.id+')">삭제</button>'
+    +'</div>';
+}
+
+// v3.13: 듀티표(캘린더) 행에 표시할 배치 직결 속성 아이콘 — 임산부·야간전담·야간면제
+//   모두 야간 배치 판단에 직결되므로 직급 옆에 노출해 듀티 작성 시 한눈에 인지하게 함.
+function dutyAttrIcons(n){
+  var a = n.attributes || {};
+  var out = [];
+  if(a.pregnant)       out.push('<span title="임산부 — 야간 금지" style="font-size:12px;margin-left:1px">🤰</span>');
+  if(a.nightDedicated) out.push('<span title="야간전담 — 야간만 배치" style="font-size:12px;margin-left:1px">🌙</span>');
+  if(a.nightExempt)    out.push('<span title="야간면제 — 야간 제외" style="font-size:12px;margin-left:1px">🚫</span>');
+  return out.join('');
+}
+
+// v3.13: 접힌 카드용 속성 요약 배지 — 펼치지 않아도 핵심 제약을 한눈에
+function attrSummary(n){
+  var a = n.attributes || {};
+  var out = [];
+  if(a.pregnant)       out.push('<span title="임산부" style="font-size:11px">🤰</span>');
+  if(a.nightDedicated) out.push('<span title="야간전담" style="font-size:11px">🌙</span>');
+  if(a.nightExempt)    out.push('<span title="야간면제" style="font-size:11px">🚫</span>');
+  if(a.fixedShift){
+    var c = a.fixedShift==='D'?'#2EA875':a.fixedShift==='E'?'#E8607E':'#7C5FD3';
+    out.push('<span title="'+a.fixedShift+' 고정" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:'+c+';color:#fff;font-size:8px;font-weight:800">'+a.fixedShift+'</span>');
+  }
+  // 프리셉터(멘토)면 표시
+  if(Array.isArray(a.preceptorOf) && a.preceptorOf.length) out.push('<span title="프리셉터" style="font-size:11px">🎓</span>');
+  return out.length ? '<span style="display:inline-flex;align-items:center;gap:3px;margin-left:2px">'+out.join('')+'</span>' : '';
+}
+
 function renderCards(){
   var el=document.getElementById('nCards');
   if(!el||!document.getElementById('sPanel').classList.contains('open'))return;
@@ -5943,24 +6112,45 @@ function renderCards(){
       +'<div class="nct">'
       +'<span class="drag-handle" title="드래그로 순서 변경" onclick="event.stopPropagation()">⠿</span>'
       +photoHTML(n,'lg')
-      +'<div class="ni2">'+'<div style="display:flex;align-items:center;gap:4px;line-height:1.3">'+'<span style="font-size:12px;font-weight:700">'+n.name+'</span>'+'<span class="nbadge" style="background:'+RBG[n.role]+';color:'+RCOL[n.role]+'">'+n.role+'</span>'+'</div>'+(n.birthday?'<div class="ncs" style="margin-top:2px">🎂 '+n.birthday+'</div>':'')+'<div class="ncs" style="margin-top:1px">'+(n.joinDate?n.joinDate.slice(0,7)+' 입사 · '+yr+'년차':'입사일 미입력')+'</div>'+(n.memo?'<div class="ncs" style="margin-top:1px;color:var(--text3)">'+n.memo+'</div>':'')+'</div>'
+      +'<div class="ni2">'+'<div style="display:flex;align-items:center;gap:4px;line-height:1.3;flex-wrap:wrap">'+'<span style="font-size:12px;font-weight:700">'+n.name+'</span>'+'<span class="nbadge" style="background:'+RBG[n.role]+';color:'+RCOL[n.role]+'">'+n.role+'</span>'+attrSummary(n)+'</div>'+(n.birthday?'<div class="ncs" style="margin-top:2px">🎂 '+n.birthday+'</div>':'')+'<div class="ncs" style="margin-top:1px">'+(n.joinDate?n.joinDate.slice(0,7)+' 입사 · '+yr+'년차':'입사일 미입력')+'</div>'+(n.memo?'<div class="ncs" style="margin-top:1px;color:var(--text3)">'+n.memo+'</div>':'')+'</div>'
       +'<div class="ncv '+vcCls+'" style="padding:2px 5px;border-radius:6px;font-size:9px">연차 '+rv+'일 남음<br><span style="font-weight:400;color:var(--text2)">사용 '+cntVacYear(n.id,cy)+'/'+(n.vacTotal||0)+'일 ('+cy+'년)</span><br><span style="font-weight:400;color:var(--text2)">Off '+oU+'/'+(n.role==='수간호사'?'—':Q)+'</span></div></div>'
-      +'<div class="nce">'
-      +'<div class="efg">'
-      +'<div class="efr"><label>이름</label><input id="en-'+n.id+'" value="'+n.name+'" maxlength="6" onclick="event.stopPropagation()"></div>'
-      +'<div class="efr"><label>직급</label><select id="er-'+n.id+'" onclick="event.stopPropagation()">'+ROLES.map(function(r){return '<option'+(r===n.role?' selected':'')+'>'+r+'</option>';}).join('')+'</select></div>'
-      +'<div class="efr"><label>입사일</label><input type="date" id="ej-'+n.id+'" value="'+(n.joinDate||'')+'" onclick="event.stopPropagation()"></div>'
-      +'<div class="efr"><label>생일 (월-일 또는 년-월-일)</label><input type="text" id="eb-'+n.id+'" value="'+(n.birthday||'')+'" placeholder="예: 1990-05-14" onclick="event.stopPropagation()"></div>'
-      +'<div class="efr"><label>연차 연간 총 일수 (1년 기준)</label><input type="number" id="ev-'+n.id+'" value="'+n.vacTotal+'" min="0" max="30" onclick="event.stopPropagation()"></div>'
-      +'<div class="efr full"><label>비고 메모</label><textarea id="em-'+n.id+'" placeholder="자유 메모" maxlength="200" rows="2" onclick="event.stopPropagation()" oninput="autoResizeMemo(this)" style="width:100%;padding:3px 5px;border:0.5px solid var(--bd2);border-radius:5px;font-size:11px;background:var(--bg);color:var(--text);font-family:inherit;resize:none;overflow:hidden;line-height:1.5">'+(n.memo||'')+'</textarea></div>'
-      +'<div class="efr full"><label>프로필 사진</label>'+'<div class="photo-upload-area" onclick="document.getElementById(\'ph-'+n.id+'\').click()">'+(n.photo?'<img src="'+n.photo+'" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:1.5px solid var(--bd2);margin-bottom:4px"><br>':'<div style="font-size:22px;margin-bottom:4px">📷</div>')+'<div style="font-size:10px;font-weight:500;color:var(--text2)">'+(n.photo?'사진 변경':'사진 업로드')+'</div>'+'<div class="photo-tip">JPG · PNG · WEBP 권장 · 자동으로 80×80px 압축<br>정방형 구도 권장 (아닌 경우 중앙 크롭됩니다)</div>'+'<input type="file" id="ph-'+n.id+'" accept="image/*" onchange="onPhotoUpload('+n.id+',this)" onclick="event.stopPropagation()">'+'</div>'+(n.photo?'<button class="btn red sm" style="margin-top:4px;width:100%" onclick="event.stopPropagation();removePhoto('+n.id+')">사진 삭제</button>':'')+'</div>'+renderPrefUI(n)+renderAttrUI(n)+'<div class="efr full"><label>색상</label><div class="cgrid" id="ecg-'+n.id+'">'+NCOLS.map(function(cl){return '<div class="cdot'+(cl===n.color?' sel':'')+'" style="background:'+cl+'" onclick="event.stopPropagation();pickEdit('+n.id+',\''+cl+'\')"></div>';}).join('')+'</div></div>'
-      +'</div>'
-      +'<div class="efa" onclick="event.stopPropagation()"><button class="btn green sm" onclick="saveNurse('+n.id+')">저장</button><button class="btn red sm" onclick="delNurse('+n.id+')">삭제</button></div>'
+      +'<div class="nce"'+(editNid===n.id?' onclick="event.stopPropagation()"':'')+'>'
+      +(editNid===n.id ? (
+        '<div class="efg">'
+        +'<div class="efr"><label>이름</label><input id="en-'+n.id+'" value="'+n.name+'" maxlength="6" onclick="event.stopPropagation()"></div>'
+        +'<div class="efr"><label>직급</label><select id="er-'+n.id+'" onclick="event.stopPropagation()">'+ROLES.map(function(r){return '<option'+(r===n.role?' selected':'')+'>'+r+'</option>';}).join('')+'</select></div>'
+        +'<div class="efr"><label>입사일</label><input type="date" id="ej-'+n.id+'" value="'+(n.joinDate||'')+'" onclick="event.stopPropagation()"></div>'
+        +'<div class="efr"><label>생일 (월-일 또는 년-월-일)</label><input type="text" id="eb-'+n.id+'" value="'+(n.birthday||'')+'" placeholder="예: 1990-05-14" onclick="event.stopPropagation()"></div>'
+        +'<div class="efr"><label>연차 연간 총 일수 (1년 기준)</label><input type="number" id="ev-'+n.id+'" value="'+n.vacTotal+'" min="0" max="30" onclick="event.stopPropagation()"></div>'
+        +'<div class="efr full"><label>비고 메모</label><textarea id="em-'+n.id+'" placeholder="자유 메모" maxlength="200" rows="2" onclick="event.stopPropagation()" oninput="autoResizeMemo(this)" style="width:100%;padding:3px 5px;border:0.5px solid var(--bd2);border-radius:5px;font-size:11px;background:var(--bg);color:var(--text);font-family:inherit;resize:none;overflow:hidden;line-height:1.5">'+(n.memo||'')+'</textarea></div>'
+        +'<div class="efr full" style="grid-column:span 2">'+renderAttrUI(n)+'</div>'
+        +'<div class="efr full" style="grid-column:span 2">'+renderPrefUI(n)+'</div>'
+        +'<div class="efr full"><label>프로필 사진</label>'+'<div class="photo-upload-area" onclick="document.getElementById(\'ph-'+n.id+'\').click()">'+(n.photo?'<img src="'+n.photo+'" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:1.5px solid var(--bd2);margin-bottom:4px"><br>':'<div style="font-size:22px;margin-bottom:4px">📷</div>')+'<div style="font-size:10px;font-weight:500;color:var(--text2)">'+(n.photo?'사진 변경':'사진 업로드')+'</div>'+'<div class="photo-tip">JPG · PNG · WEBP 권장 · 자동으로 80×80px 압축<br>정방형 구도 권장 (아닌 경우 중앙 크롭됩니다)</div>'+'<input type="file" id="ph-'+n.id+'" accept="image/*" onchange="onPhotoUpload('+n.id+',this)" onclick="event.stopPropagation()">'+'</div>'+(n.photo?'<button class="btn red sm" style="margin-top:4px;width:100%" onclick="event.stopPropagation();removePhoto('+n.id+')">사진 삭제</button>':'')+'</div>'
+        +'<div class="efr full"><label>색상</label><div class="cgrid" id="ecg-'+n.id+'">'+NCOLS.map(function(cl){return '<div class="cdot'+(cl===n.color?' sel':'')+'" style="background:'+cl+'" onclick="event.stopPropagation();pickEdit('+n.id+',\''+cl+'\')"></div>';}).join('')+'</div></div>'
+        +'</div>'
+        +'<div class="efa" onclick="event.stopPropagation()"><button class="btn green sm" onclick="saveNurse('+n.id+')">저장</button><button class="btn sm" onclick="cancelEdit()">취소</button></div>'
+      ) : renderViewMode(n))
       +'</div></div>';
   }).join('');
 }
 
-function selCard(nid){selNid=selNid===nid?null:nid;renderCards();setTimeout(initMemoHeights,30);}
+function selCard(nid){
+  // 편집 중인 카드를 클릭으로 닫지 않음 (입력 내용 유실 방지). 저장/취소 버튼으로만 종료.
+  if(editNid===nid) return;
+  // 카드를 접으면 편집모드도 해제. 다른 카드를 열면 편집모드 초기화.
+  if(selNid===nid){ selNid=null; editNid=null; }
+  else { selNid=nid; editNid=null; }
+  renderCards();setTimeout(initMemoHeights,30);
+}
+// v3.13: 보기 모드 → 편집 모드 진입
+function startEdit(nid){
+  selNid=nid; editNid=nid;
+  renderCards(); setTimeout(initMemoHeights,30);
+}
+function cancelEdit(){
+  editNid=null;
+  renderCards();
+}
 function pickEdit(nid,c){var n=nurses.find(function(x){return x.id===nid;});if(n)n.color=c;renderCards();}
 function saveNurse(nid){
   var n=nurses.find(function(x){return x.id===nid;});if(!n)return;
@@ -5971,6 +6161,7 @@ function saveNurse(nid){
   n.birthday=(document.getElementById('eb-'+nid)||{}).value||'';
   n.vacTotal=parseInt((document.getElementById('ev-'+nid)||{}).value)||0;
   n.memo=(document.getElementById('em-'+nid)||{}).value||'';
+  editNid=null;  // 저장 후 보기 모드로 복귀
   saveLocal();render();showToast('저장 완료',1500);
 }
 function delNurse(nid){
@@ -5997,7 +6188,7 @@ function addNurse(){
     birthday:'',memo:'',photo:'',
     vacTotal:parseInt(document.getElementById('aV').value)||15,color:addColor,
     prefs:{shift:{D:0,E:0,N:0},avoidWith:[],preferWith:[]},
-    attributes:{pregnant:false,nightDedicated:false,nightExempt:false,fixedShift:null,preceptorOf:[],targetOffOverride:null},
+    attributes:{pregnant:false,nightDedicated:false,nightExempt:false,fixedShift:null,preceptorOf:[],targetOffOverride:null,skillLevel:2},
     carryOver:{offBalance:0},
     manualOrder:maxOrd+1});
   document.getElementById('aN').value='';document.getElementById('aJ').value='';document.getElementById('aV').value='15';
@@ -6020,7 +6211,7 @@ function exportExcel(){
     ws[XLSX.utils.encode_cell({r:1,c:d+8})]=mH(d+'\n'+DKO[w]+(hn(cy,cm,d)?'\n'+hn(cy,cm,d):''),rgb);
   }
   ['D','E','N','O','V'].forEach(function(l,i){
-    ws[XLSX.utils.encode_cell({r:1,c:nd+9+i})]=mH(l+'합계',['FF1E6DBF','FF1A8C62','FF5B44C8','FF686864','FFC0781A'][i]);
+    ws[XLSX.utils.encode_cell({r:1,c:nd+9+i})]=mH(l+'합계',['FF2EA875','FFE8607E','FF7C5FD3','FFB0ABA0','FFE2941C'][i]);
   });
   sorted().forEach(function(n,ni){
     var row=ni+2;var yr=yrs(n.joinDate);var vU=cntVac(n.id);var rv=remVac(n);var oU=cntOff(n.id);
@@ -6046,7 +6237,7 @@ function exportExcel(){
       ws[XLSX.utils.encode_cell({r:row,c:d+8})]={v:code,t:'s',s:sh?{font:{bold:true,sz:10,color:{rgb:'FFFFFFFF'}},fill:{fgColor:{rgb:h2a(sh.color)}},alignment:{horizontal:'center',vertical:'center'},border:db}:{fill:{fgColor:{rgb:bg}},alignment:{horizontal:'center',vertical:'center'},border:db}};
       if(code==='D')cD++;if(code==='E')cE++;if(code==='N')cN++;if(code==='O')cO++;if(code==='V')cV++;
     }
-    [[cD,'FF1E6DBF'],[cE,'FF1A8C62'],[cN,'FF5B44C8'],[cO,'FF686864'],[cV,'FFC0781A']].forEach(function(pair,i){
+    [[cD,'FF2EA875'],[cE,'FFE8607E'],[cN,'FF7C5FD3'],[cO,'FFB0ABA0'],[cV,'FFE2941C']].forEach(function(pair,i){
       ws[XLSX.utils.encode_cell({r:row,c:nd+9+i})]={v:pair[0],t:'n',s:{font:{bold:true,sz:10,color:{rgb:'FFFFFFFF'}},fill:{fgColor:{rgb:pair[1]}},alignment:{horizontal:'center',vertical:'center'},border:db}};
     });
   });
@@ -6377,6 +6568,9 @@ function loadLocal(){
     if(!Array.isArray(n.attributes.preceptorOf)) n.attributes.preceptorOf=[];
     // v6.2: off 정량 사람별 조정 (null=자동, 숫자=덮어쓰기)
     if(n.attributes.targetOffOverride===undefined) n.attributes.targetOffOverride=null;
+    // v3.13: 숙련도(업무강도) — 데이터 구조만 심어둠. UX 미구현(추후 기능).
+    //   1=저 · 2=중(기본) · 3=고. 향후 자동배치에서 시프트별 숙련도 균형에 활용 예정.
+    if(n.attributes.skillLevel===undefined) n.attributes.skillLevel=2;
     // v6.4: off 이월 잔고 (월마감 시 누적, 다음 달 target에 반영)
     if(!n.carryOver || typeof n.carryOver!=='object') n.carryOver={offBalance:0};
     if(typeof n.carryOver.offBalance!=='number') n.carryOver.offBalance=0;
