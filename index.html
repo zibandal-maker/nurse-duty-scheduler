@@ -101,9 +101,12 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:13px;
 /* TABLE — fixed layout, width auto so nurse col gap doesn't stretch */
 table{border-collapse:collapse;table-layout:fixed;width:auto;min-width:100%;}
 
-thead th{font-size:10px;font-weight:500;color:var(--text2);text-align:center;padding:2px 1px 3px;border-bottom:0.5px solid var(--bd2);position:sticky;top:0;background:var(--bg);z-index:2;overflow:hidden;}
-thead th.nc{text-align:left;padding-left:8px;width:150px;min-width:150px;font-size:11px;position:sticky;left:0;z-index:3;background:var(--bg);}
-thead th.dh{width:28px;min-width:28px;max-width:28px;vertical-align:top;}
+/* v3.14.9: thead 요소 자체에 sticky — th에 거는 sticky는 table 레이아웃+배율 환경에서
+   스크롤 컨테이너를 못 잡아 풀리는 버그가 있다(125% 배율에서 재현됨). thead로 옮겨 확실히 고정. */
+thead#tHead{position:sticky;top:0;z-index:10;}
+thead th{font-size:10px;font-weight:500;color:var(--text2);text-align:center;padding:2px 1px 3px;border-bottom:0.5px solid var(--bd2);background:var(--bg);overflow:hidden;box-shadow:0 1px 0 var(--bd2);}
+thead th.nc{text-align:left;padding-left:8px;width:150px;min-width:150px;font-size:11px;position:sticky;left:0;z-index:11;background:var(--bg);}
+thead th.dh{width:28px;min-width:28px;max-width:28px;vertical-align:top;background:var(--bg);}
 
 th.sat{background:rgba(24,95,165,.09)!important;color:#185FA5!important;}
 th.sun{background:rgba(200,50,50,.09)!important;color:#A32D2D!important;}
@@ -753,7 +756,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span id="aboutVersion">Version 3.14.8 · Public Release</span>
+        <span id="aboutVersion">Version 3.14.9 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -1377,7 +1380,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.14.8';
+const APP_VERSION = '3.14.9';
 const UPDATE_NOTES = [
   { v:'3.14.0', date:'2026-05', items:[
     '⌨️ 키보드 단축키 추가 — 방향키로 셀 이동, 1~6으로 D/E/N/O/V/경조 입력, Del 삭제',
