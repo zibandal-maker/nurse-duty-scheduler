@@ -166,6 +166,8 @@ tfoot#tFoot td.dsD{color:#1F8A5E;} tfoot#tFoot td.dsE{color:#C4456A;} tfoot#tFoo
 /* v3.13: 경고 느낌표 배지 — 셀 좌상단(락 핀과 안 겹침) */
 td.dc{position:relative;}
 .warn-mark{position:absolute;top:0;left:1px;width:12px;height:12px;border-radius:50%;color:#fff;font-size:9px;font-weight:900;line-height:12px;text-align:center;pointer-events:none;box-shadow:0 0 0 1.5px #fff;z-index:3;}
+/* v3.14: 키보드 포커스 셀 — 파란 링으로 또렷하게 */
+td.kb-focus{box-shadow:inset 0 0 0 2px #1E6DBF, 0 0 0 1px #1E6DBF;border-radius:3px;}
 /* 충돌 경고 셀: 좌측 라인 대신 시프트바 테두리+글로우로 표시 (연속 셀에서도 또렷이 구분) */
 td.wcell{background:rgba(226,75,74,.06)!important;}
 td.wcell .sb:not(.empty){box-shadow:inset 0 0 0 1.5px #E24B4A, 0 0 0 1px rgba(226,75,74,.35);}
@@ -529,6 +531,16 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
         </select>
       </div>
     </div>
+    <div style="flex-shrink:0;margin-top:8px;padding:9px 11px;background:#EAF1FB;border:0.5px solid #B5D4F4;border-radius:7px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
+        <input type="checkbox" id="expKbd" onchange="toggleKbEnabled()" style="width:15px;height:15px;cursor:pointer">
+        <span><b>⌨️ 키보드 단축키</b></span>
+      </label>
+      <div style="font-size:10.5px;color:#0C447C;margin-top:4px;line-height:1.6;padding-left:23px">
+        셀을 클릭/방향키로 선택한 뒤 키보드로 빠르게 입력합니다. 모르면 평소처럼 마우스로 쓰면 됩니다.<br>
+        <b>방향키</b> 셀 이동 · <b>1~6</b> D/E/N/O/V/경조 입력 · <b>Del/0</b> 삭제 · <b>[ ]</b> 이전/다음 달 · <b>T</b> 오늘 · <b>A</b> 자동배치 · <b>Ctrl+S</b> 저장 · <b>Ctrl+Z</b> 되돌리기 · <b>?</b> 도움말
+      </div>
+    </div>
     <div style="display:flex;gap:6px;margin-top:10px;flex-shrink:0">
       <button class="btn" style="background:#1a1a18;color:#fff;border-color:#1a1a18;flex:1;font-weight:600" onclick="saveRules()">💾 저장 적용</button>
       <button class="mclose" style="margin:0;flex:1" onclick="closeOv('rulesOv')">닫기</button>
@@ -662,7 +674,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span id="aboutVersion">Version 3.13.1 · Public Release</span>
+        <span id="aboutVersion">Version 3.14.0 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -1275,8 +1287,15 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.13.1';
+const APP_VERSION = '3.14.0';
 const UPDATE_NOTES = [
+  { v:'3.14.0', date:'2026-05', items:[
+    '⌨️ 키보드 단축키 추가 — 방향키로 셀 이동, 1~6으로 D/E/N/O/V/경조 입력, Del 삭제',
+    '⌨️ [ ] 월 이동 · T 오늘 · A 자동배치 · Ctrl+S 저장 · Ctrl+Z 되돌리기 · ? 도움말',
+    '⌨️ 기본 켜짐 — 규칙설정에서 끌 수 있음. 입력 칸 작성 중엔 자동으로 비활성',
+    '🎨 상단 탑바 재정리 — 화사한 파스텔 톤 + 기능 그룹화 + 더보기 메뉴',
+    '🎨 경조(B) 색을 남색으로 변경 — Eve(분홍)와 헷갈리지 않게',
+  ]},
   { v:'3.13.0', date:'2026-05', items:[
     '🎨 시프트 색상 개편 — 한국 간호 관행 + 따뜻한 톤 (D초록·E분홍·N보라·O웜그레이), 원형 배지',
     '📊 하단 날짜별 통계 행 — 매일 DAY/EVE/NIGHT/OFF 인원수 + 최소인원 미달 빨간 경고',
@@ -2157,6 +2176,9 @@ let cy=new Date().getFullYear();
 let cm=new Date().getMonth();
 let dragSrc=null;
 let cfCb=null;
+// v3.14: 키보드 단축키 — 현재 포커스된 셀 {nid,d} (null=없음). 기본 켜짐, 끌 수 있음.
+let kbFocus=null;
+let kbEnabled=(function(){ try{ var v=localStorage.getItem(dataKey('dv6_kbd')); return v===null?true:v==='1'; }catch(e){ return true; } })();
 
 // helpers
 const ndays=(y,m)=>new Date(y,m+1,0).getDate();
@@ -3009,6 +3031,7 @@ function syncAltUI(){
   var sel=document.getElementById('altKeySel'); if(sel) sel.value=ALT_KEY;
   var row=document.getElementById('altKeyRow'); if(row) row.style.display=ALT_ENABLED?'flex':'none';
   var lbl=document.getElementById('altKeyLabel'); if(lbl) lbl.textContent=_altKeyLabel(ALT_KEY);
+  var kb=document.getElementById('expKbd'); if(kb) kb.checked=kbEnabled;  // v3.14
 }
 
 // 현재 배치의 위반 점수 — 앱의 lexScore(사전식 4계층)를 그대로 사용
@@ -4215,6 +4238,7 @@ function render(){
   document.getElementById('tBody').innerHTML=tb;
   renderStats(cf, _pvList);
   renderDayStats();
+  applyKbFocus();  // v3.14: 키보드 포커스 셀 표시 복원 (render로 DOM 새로 그려졌으므로)
   if(document.getElementById('sPanel').classList.contains('open')) renderCards();
   // v3.7: 원티드 모드 UI 상태 동기화 (카운트 갱신 포함)
   applyWantedModeUI();
@@ -4509,6 +4533,7 @@ document.addEventListener('mouseup', function(){
 
 function onCell(nid,d){
   if(_altSuppressClick){ _altSuppressClick=false; return; }  // 🧪 대안 패널 호출 직후 클릭 무시
+  syncKbFocusFromClick(nid,d);  // v3.14: 클릭 셀을 키보드 포커스로
   if(editLocked){showToast('🔒 편집이 잠겨 있습니다');return;}
   if(_justDragged){ _justDragged=false; return; }  // v3.11: 드래그 완료 직후 클릭 무시
   // v3.7+v3.11: 원티드 모드 — 선택된 시프트 코드를 셀에 배정하며 락
@@ -4564,6 +4589,118 @@ function onCell(nid,d){
   } else {
     openCellModal(nid,d);
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// v3.14: 키보드 단축키 시스템
+//   셀 포커스(방향키 이동) + 1~6 시프트 입력 + Del 삭제 + 월이동·저장·자동배치.
+//   기본 켜짐, 규칙설정에서 끌 수 있음. 입력 필드 포커스 시·모달 열림 시 비활성.
+// ════════════════════════════════════════════════════════════════════════
+
+// 단축키로 셀에 코드 직접 배정 (토글: 같은 코드면 삭제). 락된 셀·연차 잔여 검사 포함.
+function setCellShift(nid, d, code){
+  if(editLocked){ showToast('🔒 편집이 잠겨 있습니다'); return; }
+  if(isLocked(nid,d)){ showToast('📌 원티드 락 셀 — 단축키로 변경 불가'); return; }
+  var k=key(nid,d);
+  if(code===null){ // 삭제
+    if(schedule[k]!==undefined){ delete schedule[k]; saveLocal(); render(); }
+    return;
+  }
+  if(code==='V'){
+    var n=getNurse(nid);
+    if(schedule[k]==='V'){ delete schedule[k]; saveLocal(); render(); return; }
+    if(n && remVac(n)<=0){ showToast((n?n.name:'')+' 잔여 연차 없음'); return; }
+  }
+  if(schedule[k]===code) delete schedule[k]; else schedule[k]=code;
+  saveLocal(); render();
+}
+
+// 포커스 셀 시각 표시 갱신 (render 후 호출)
+function applyKbFocus(){
+  // 기존 포커스 표시 제거
+  var prev=document.querySelector('td.kb-focus');
+  if(prev) prev.classList.remove('kb-focus');
+  if(!kbEnabled || !kbFocus) return;
+  var cell=document.getElementById('c-'+kbFocus.nid+'-'+kbFocus.d);
+  if(cell) cell.classList.add('kb-focus');
+}
+
+// 포커스 이동 (방향키). 행=간호사(정렬순), 열=날짜.
+function moveKbFocus(dr, dc){
+  var nd=ndays(cy,cm);
+  var order=sorted();
+  if(!order.length) return;
+  if(!kbFocus){ kbFocus={nid:order[0].id, d:1}; applyKbFocus(); return; }
+  var ri=order.findIndex(function(n){return n.id===kbFocus.nid;});
+  if(ri<0) ri=0;
+  ri=Math.max(0, Math.min(order.length-1, ri+dr));
+  var nd2=Math.max(1, Math.min(nd, kbFocus.d+dc));
+  kbFocus={nid:order[ri].id, d:nd2};
+  applyKbFocus();
+  // 포커스 셀이 화면 밖이면 스크롤
+  var cell=document.getElementById('c-'+kbFocus.nid+'-'+kbFocus.d);
+  if(cell && cell.scrollIntoView) cell.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+
+// 입력 중인지 (input/textarea/select/contenteditable에 포커스) — 단축키 차단 대상
+function _isTyping(){
+  var a=document.activeElement;
+  if(!a) return false;
+  var tag=(a.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select') return true;
+  if(a.isContentEditable) return true;
+  return false;
+}
+// 모달이 열려있는지 (모달 열림 시 셀 단축키 비활성)
+function _modalOpen(){
+  return !!document.querySelector('.modal-bg.show, .modal.show, .mwrap.show');
+}
+
+function handleKeyboard(e){
+  if(!kbEnabled) return;
+  if(_isTyping()) return;            // 입력 필드에선 단축키 무시
+  var k=e.key;
+
+  // ── 전역 액션 (셀 포커스 무관) ─────────────────────────────────
+  if((e.ctrlKey||e.metaKey) && (k==='s'||k==='S')){ e.preventDefault(); manualSave(); return; }
+  if((e.ctrlKey||e.metaKey) && (k==='z'||k==='Z')){ e.preventDefault(); if(typeof openRollback==='function') openRollback(); return; }
+  if(e.ctrlKey||e.metaKey||e.altKey) return;  // 그 외 조합키는 통과
+
+  if(_modalOpen()) return;          // 모달 열림 시 이하 무시
+
+  // 월 이동·네비
+  if(k==='['||k==='PageUp'){ e.preventDefault(); changeMonth(-1); return; }
+  if(k===']'||k==='PageDown'){ e.preventDefault(); changeMonth(1); return; }
+  if(k==='t'||k==='T'){ e.preventDefault(); goToday(); return; }
+  if(k==='a'||k==='A'){ e.preventDefault(); confirmDo('자동배치','이번 달 배치를 초기화하고 알고리듬으로 재배치합니다.',autoFill); return; }
+  if(k==='?'){ e.preventDefault(); if(typeof openHelp==='function') openHelp(); return; }
+
+  // 방향키 이동
+  if(k==='ArrowUp'){ e.preventDefault(); moveKbFocus(-1,0); return; }
+  if(k==='ArrowDown'){ e.preventDefault(); moveKbFocus(1,0); return; }
+  if(k==='ArrowLeft'){ e.preventDefault(); moveKbFocus(0,-1); return; }
+  if(k==='ArrowRight'){ e.preventDefault(); moveKbFocus(0,1); return; }
+
+  // 셀 입력 (포커스 셀에). 1~6 → D/E/N/O/V/B
+  if(!kbFocus) return;
+  var CODE_MAP={'1':'D','2':'E','3':'N','4':'O','5':'V','6':'B'};
+  if(CODE_MAP[k]){ e.preventDefault(); setCellShift(kbFocus.nid, kbFocus.d, CODE_MAP[k]); return; }
+  if(k==='Delete'||k==='Backspace'||k==='0'){ e.preventDefault(); setCellShift(kbFocus.nid, kbFocus.d, null); return; }
+}
+document.addEventListener('keydown', handleKeyboard);
+
+// 셀 클릭 시 그 셀을 키보드 포커스로 동기화 (마우스↔키보드 자연스러운 전환)
+function syncKbFocusFromClick(nid, d){
+  if(!kbEnabled) return;
+  kbFocus={nid:nid, d:d};
+  applyKbFocus();
+}
+
+function toggleKbEnabled(){
+  kbEnabled=!kbEnabled;
+  try{ localStorage.setItem(dataKey('dv6_kbd'), kbEnabled?'1':'0'); }catch(e){}
+  if(!kbEnabled){ kbFocus=null; applyKbFocus(); }
+  showToast(kbEnabled ? '⌨️ 키보드 단축키 ON' : '⌨️ 키보드 단축키 OFF', 1500);
 }
 
 // v3.7: 원티드 모드 토글 함수
