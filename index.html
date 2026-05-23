@@ -168,6 +168,8 @@ td.dc{position:relative;}
 .warn-mark{position:absolute;top:0;left:1px;width:12px;height:12px;border-radius:50%;color:#fff;font-size:9px;font-weight:900;line-height:12px;text-align:center;pointer-events:none;box-shadow:0 0 0 1.5px #fff;z-index:3;}
 /* v3.14: 키보드 포커스 셀 — 파란 링으로 또렷하게 */
 td.kb-focus{box-shadow:inset 0 0 0 2px #1E6DBF, 0 0 0 1px #1E6DBF;border-radius:3px;}
+/* v3.14: 단축키 팝오버 키 표시 */
+.kbk{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;font-weight:700;color:#0C447C;background:#EAF1FB;border:0.5px solid #B5D4F4;border-radius:4px;padding:1px 6px;text-align:center;white-space:nowrap;}
 /* 충돌 경고 셀: 좌측 라인 대신 시프트바 테두리+글로우로 표시 (연속 셀에서도 또렷이 구분) */
 td.wcell{background:rgba(226,75,74,.06)!important;}
 td.wcell .sb:not(.empty){box-shadow:inset 0 0 0 1.5px #E24B4A, 0 0 0 1px rgba(226,75,74,.35);}
@@ -403,6 +405,33 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
   <button onclick="openWantedManager()" title="원티드 관리 — 목록 보기, 사유 편집, 일괄 해제"
     style="padding:3px 9px;border-radius:20px;border:0.5px solid var(--bd2);background:var(--bg);color:var(--text2);font-size:10px;cursor:pointer;font-family:inherit;flex-shrink:0">목록·관리</button>
   <span class="shint" id="shiftHint">셀 클릭 배정 · 드래그 이동</span>
+  <span style="flex:1"></span>
+  <div class="kbchip-wrap" id="kbChipWrap" style="position:relative;flex-shrink:0">
+    <button id="kbChip" onclick="toggleKbHelp(event)" title="키보드 단축키 보기"
+      style="display:flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;border:0.5px solid #B5D4F4;background:#EAF1FB;color:#0C447C;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0">
+      <span style="font-size:12px">⌨</span><span id="kbChipLabel">단축키</span>
+    </button>
+    <div id="kbHelpPop" style="display:none;position:absolute;bottom:calc(100% + 6px);right:0;background:var(--bg);border:0.5px solid var(--bd2);border-radius:9px;box-shadow:0 6px 22px rgba(0,0,0,.16);padding:11px 13px;width:280px;z-index:300;font-size:11px;line-height:1.7;color:var(--text)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+        <b style="font-size:12px;color:#0C447C">⌨ 키보드 단축키</b>
+        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);cursor:pointer">
+          <input type="checkbox" id="kbPopToggle" onchange="toggleKbEnabled()" style="width:13px;height:13px;cursor:pointer">사용
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px">
+        <span class="kbk">← ↑ → ↓</span><span>셀 이동</span>
+        <span class="kbk">1~6</span><span>D / E / N / O / V / 경조 입력</span>
+        <span class="kbk">Del · 0</span><span>셀 비우기</span>
+        <span class="kbk">[ · ]</span><span>이전 / 다음 달</span>
+        <span class="kbk">T</span><span>오늘로</span>
+        <span class="kbk">A</span><span>자동배치 (확인 후)</span>
+        <span class="kbk">Ctrl+S</span><span>저장</span>
+        <span class="kbk">Ctrl+Z</span><span>되돌리기</span>
+        <span class="kbk">?</span><span>사용 가이드</span>
+      </div>
+      <div style="margin-top:8px;font-size:9.5px;color:var(--text3)">셀을 클릭하거나 방향키로 선택한 뒤 입력하세요. 이름·메모 작성 중엔 자동으로 꺼집니다.</div>
+    </div>
+  </div>
 </div>
 
 <div class="body-wrap">
@@ -674,7 +703,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span id="aboutVersion">Version 3.14.0 · Public Release</span>
+        <span id="aboutVersion">Version 3.14.2 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -1146,10 +1175,21 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
         <!-- ── 단축키 ── -->
         <section id="help-shortcuts" style="margin-top:24px">
           <h2 style="font-size:16px;font-weight:700;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--bd2)">⌨️ 단축키 · 팁</h2>
+          <p style="margin:0 0 10px;font-size:12px;color:var(--text2)">키보드 단축키는 <b>기본 켜짐</b>입니다. 하단 시프트 바 오른쪽 <b>⌨ 단축키</b> 칩을 누르면 언제든 목록을 볼 수 있고, 거기서 또는 규칙설정에서 끌 수 있습니다. 셀을 클릭하거나 방향키로 선택한 뒤 입력하세요. 이름·메모 등 입력칸을 작성하는 중에는 자동으로 비활성화됩니다.</p>
           <table style="width:100%;border-collapse:collapse;font-size:12px">
             <tbody>
-            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600;width:160px"><kbd style="background:var(--bg2);padding:2px 6px;border-radius:3px;font-family:monospace">Ctrl+F</kbd> / <kbd style="background:var(--bg2);padding:2px 6px;border-radius:3px;font-family:monospace">⌘+F</kbd></td><td style="padding:6px">이 도움말 안에서 검색</td></tr>
-            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600"><kbd style="background:var(--bg2);padding:2px 6px;border-radius:3px;font-family:monospace">F12</kbd></td><td style="padding:6px">개발자 도구 (콘솔에서 <code style="background:var(--bg2);padding:1px 4px;border-radius:3px">saveStatus()</code> 입력으로 저장 상태 확인)</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd);background:var(--bg2)"><td colspan="2" style="padding:5px 6px;font-weight:700;font-size:11px;color:var(--text2)">키보드 입력 (v3.14)</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600;width:170px"><kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">← ↑ → ↓</kbd></td><td style="padding:6px">셀 사이 이동 (포커스 셀은 파란 테두리)</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600"><kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">1 ~ 6</kbd></td><td style="padding:6px">포커스 셀에 <b>D / E / N / O / V / 경조</b> 입력 (같은 키 다시 누르면 삭제)</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600"><kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">Del</kbd> / <kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">0</kbd></td><td style="padding:6px">셀 비우기</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600"><kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">[</kbd> / <kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">]</kbd></td><td style="padding:6px">이전 / 다음 달</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600"><kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">T</kbd></td><td style="padding:6px">오늘 날짜로</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600"><kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">A</kbd></td><td style="padding:6px">자동배치 (확인 창 후 실행)</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600"><kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">Ctrl+S</kbd> / <kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">⌘+S</kbd></td><td style="padding:6px">저장</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600"><kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">Ctrl+Z</kbd> / <kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">⌘+Z</kbd></td><td style="padding:6px">되돌리기</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600"><kbd style="background:#EAF1FB;color:#0C447C;padding:2px 6px;border-radius:3px;font-family:monospace">?</kbd></td><td style="padding:6px">이 사용 가이드 열기</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd);background:var(--bg2)"><td colspan="2" style="padding:5px 6px;font-weight:700;font-size:11px;color:var(--text2)">마우스 · 기타</td></tr>
+            <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600;width:170px"><kbd style="background:var(--bg2);padding:2px 6px;border-radius:3px;font-family:monospace">Ctrl+F</kbd> / <kbd style="background:var(--bg2);padding:2px 6px;border-radius:3px;font-family:monospace">⌘+F</kbd></td><td style="padding:6px">이 도움말 안에서 검색</td></tr>
             <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600">셀 더블클릭</td><td style="padding:6px">상세 입력 모달</td></tr>
             <tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:6px;font-weight:600">셀 드래그</td><td style="padding:6px">시프트 이동 (둘이 교환)</td></tr>
             <tr><td style="padding:6px;font-weight:600">간호사 카드 드래그</td><td style="padding:6px">순서 재정렬</td></tr>
@@ -1287,7 +1327,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.14.0';
+const APP_VERSION = '3.14.2';
 const UPDATE_NOTES = [
   { v:'3.14.0', date:'2026-05', items:[
     '⌨️ 키보드 단축키 추가 — 방향키로 셀 이동, 1~6으로 D/E/N/O/V/경조 입력, Del 삭제',
@@ -2187,13 +2227,24 @@ const key=(nid,d)=>nid+'|'+cy+'|'+cm+'|'+d;
 
 // v3.13: 선임 판정 단일 진실 공급원 (Single Source of Truth).
 //   기존엔 'n.role==='주임'||n.role==='차지''가 5곳에 복붙돼 있어, 선임 정의 변경 시
-//   누락 위험이 컸다. 이 헬퍼 하나로 통일 → 규칙(headNurseAsSenior)도 한 곳에서 반영.
-//   수간호사 포함 옵션이 켜지면 수간호사도 선임으로 인정.
+//   누락 위험이 컸다. 이 헬퍼 하나로 통일.
+//   ※ v3.14: 수간호사는 여기서 선임으로 치지 않는다. 수간호사는 자동배치에서 평일 Day
+//     고정이며 교대(N/E) 불가이므로, "직급상 선임"이 아니라 "평일 Day에 한해 선임 정원
+//     충족"이라는 조건부 인정이다. 이 인정은 staffing 카운트 시점(headSeniorOnDay)에서
+//     별도 처리한다 → isSenior에 넣으면 N/E에도 선임으로 잘못 계산되는 버그가 생긴다.
 function isSenior(n){
   if(!n) return false;
-  if(n.role==='주임' || n.role==='차지') return true;
-  if(n.role==='수간호사' && RULES.staffing && RULES.staffing.headNurseAsSenior) return true;
-  return false;
+  return (n.role==='주임' || n.role==='차지');
+}
+// v3.14: 특정 날(d)·시프트(sh)에서 수간호사가 선임 정원을 채워주는지.
+//   조건: ①headNurseAsSenior 옵션 ON ②그 시프트가 Day ③수간호사가 그 날 실제 D에 배치됨.
+//   목적: 평일 Day에 수간호사가 있으니 선임 1명으로 인정 → 차지를 Day에 낭비하지 않게.
+function headSeniorBonus(sh, d){
+  if(sh!=='D') return 0;
+  if(!(RULES.staffing && RULES.staffing.headNurseAsSenior)) return 0;
+  var head=getHeadNurse();
+  if(!head) return 0;
+  return (schedule[key(head.id, d)]==='D') ? 1 : 0;
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -2631,6 +2682,7 @@ function conflicts(){
     for(var si=0;si<3;si++){
       var sh=['D','E','N'][si];
       var sc=sr.filter(function(n){return schedule[key(n.id,d)]===sh;}).length;
+      sc += headSeniorBonus(sh, d);  // v3.14: 평일 Day 수간호사 선임 인정 (옵션 ON 시)
       var pc=pl.filter(function(n){return schedule[key(n.id,d)]===sh;}).length;
       var total=sc+pc;
       if(total===0) continue; // 아무도 없으면 체크 안함
@@ -3161,6 +3213,7 @@ function computeAltCell(nid, d){
       st[dd]={};
       ['D','E','N'].forEach(function(sh){
         var sc=srAll.filter(function(n){return schedule[key(n.id,dd)]===sh;}).length;
+        sc += headSeniorBonus(sh, dd);  // v3.14
         var pc=plAll.filter(function(n){return schedule[key(n.id,dd)]===sh;}).length;
         st[dd][sh]={ok:RULES.checkStaffing(sc,pc,sh,isWH(cy,cm,dd)).ok, sr:sc, pl:pc};
       });
@@ -3179,6 +3232,7 @@ function computeAltCell(nid, d){
       var dd=parseInt(dStr), wh=isWH(cy,cm,dd);
       return ['D','E','N'].every(function(sh){
         var sc=srAll.filter(function(n){return schedule[key(n.id,dd)]===sh;}).length;
+        sc += headSeniorBonus(sh, dd);  // v3.14
         var pc=plAll.filter(function(n){return schedule[key(n.id,dd)]===sh;}).length;
         var chk=RULES.checkStaffing(sc,pc,sh,wh);
         // 원래 ok였는데 변경 후 미달이 된 경우만 차단
@@ -3795,6 +3849,9 @@ function autoFill(){
       var isWknd = isWH(cy,cm,d);
       var need = R.staffingFor(sh, isWknd);
       var alreadySrInShift = sr.filter(function(x){return asgn[x.id]===sh;}).length;
+      // v3.14: 평일 Day에 수간호사가 고정 배치돼 있으면 선임 1명으로 인정(옵션 ON 시).
+      //   → 차지(charge)를 Day에 낭비하지 않고 N/E로 돌릴 수 있음. headNurseAsSenior의 목적.
+      alreadySrInShift += headSeniorBonus(sh, d);
       var alreadyPlInShift = pl.filter(function(x){return asgn[x.id]===sh;}).length;
       var srNeeded=Math.max(0, (need.senior||0) - alreadySrInShift);
       var plNeeded=Math.max(0, (need.junior||0) - alreadyPlInShift);
@@ -4700,8 +4757,32 @@ function toggleKbEnabled(){
   kbEnabled=!kbEnabled;
   try{ localStorage.setItem(dataKey('dv6_kbd'), kbEnabled?'1':'0'); }catch(e){}
   if(!kbEnabled){ kbFocus=null; applyKbFocus(); }
+  syncKbChip();
   showToast(kbEnabled ? '⌨️ 키보드 단축키 ON' : '⌨️ 키보드 단축키 OFF', 1500);
 }
+
+// v3.14: 단축키 팝오버 토글 + 칩 상태 동기화
+function toggleKbHelp(e){
+  if(e) e.stopPropagation();
+  var pop=document.getElementById('kbHelpPop');
+  if(!pop) return;
+  var show = pop.style.display==='none';
+  pop.style.display = show?'block':'none';
+  if(show){ var cb=document.getElementById('kbPopToggle'); if(cb) cb.checked=kbEnabled; }
+}
+function closeKbHelp(){ var p=document.getElementById('kbHelpPop'); if(p) p.style.display='none'; }
+function syncKbChip(){
+  // 칩에 현재 ON/OFF 시각 반영 (OFF면 흐리게)
+  var chip=document.getElementById('kbChip');
+  var cb1=document.getElementById('kbPopToggle'); if(cb1) cb1.checked=kbEnabled;
+  var cb2=document.getElementById('expKbd'); if(cb2) cb2.checked=kbEnabled;
+  if(chip) chip.style.opacity = kbEnabled ? '1' : '0.45';
+}
+document.addEventListener('click',function(e){
+  var w=document.getElementById('kbChipWrap');
+  var p=document.getElementById('kbHelpPop');
+  if(w && p && p.style.display!=='none' && !w.contains(e.target)) p.style.display='none';
+});
 
 // v3.7: 원티드 모드 토글 함수
 function toggleWantedMode(){
@@ -6870,7 +6951,7 @@ window.addEventListener('beforeunload', function(){ saveLocal(true); });
 
 // ── 앱 시작 ───────────────────────────────────────────────────────────
 // 단일병동 안정화: 시작 시 대시보드 자동 진입 제거
-loadLocal();loadRules();loadSavedHolidays();updateRollbackBtn();_loadAltSettings();render();
+loadLocal();loadRules();loadSavedHolidays();updateRollbackBtn();_loadAltSettings();render();syncKbChip();
 
 // v3.9.2: 첫 방문/주기적 환영 모달 표시 (DOM 준비 후 약간의 지연)
 setTimeout(showWelcomeIfNeeded, 300);
