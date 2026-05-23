@@ -2180,26 +2180,39 @@ function closeMonthOffBalance(){
   var closedKey = 'dv6_offclosed';
   var closed = {};
   try{ closed = JSON.parse(localStorage.getItem(closedKey)||'{}'); }catch(e){ closed={}; }
-  if(closed[ym]){
-    if(!confirm(ym+' 월은 이미 마감했습니다.\n다시 마감하면 이월이 중복 계산됩니다.\n그래도 진행할까요?')) return;
+  // 구버전 호환: 과거 기록이 숫자(타임스탬프)면 객체로 승격(기여분 0으로 간주)
+  var rec = closed[ym];
+  if(rec && typeof rec!=='object') rec = {ts:rec, contrib:{}};
+  var isReclose = !!rec;
+  if(isReclose){
+    if(!confirm(ym+' 월은 이미 마감했습니다.\n다시 마감하면 이전 마감분을 되돌리고 새로 계산합니다.\n(중복 누적 없이 최신 듀티 기준으로 갱신)\n그래도 진행할까요?')) return;
   }
+  var prevContrib = (rec && rec.contrib) ? rec.contrib : {};
+  var newContrib = {};
   var base = offBase();
   var lines = [];
   nurses.forEach(function(n){
     if(n.role==='수간호사') return;
     if(!n.carryOver) n.carryOver={offBalance:0};
     var used = cntOff(n.id);
-    // 사람별 override가 있으면 그 값 기준, 없으면 기본정량+기존이월
-    var tgt = offQ(n.id);
+    // 순수 정량 기준(이월 제외)으로 미소진분 계산 — 이중계산 방지.
+    //   override가 있으면 그 절대값을, 없으면 그달 기본정량(휴일수)을 목표로.
+    var ovr = (n.attributes && n.attributes.targetOffOverride!=null
+               && !isNaN(n.attributes.targetOffOverride));
+    var tgt = ovr ? n.attributes.targetOffOverride : base;
     var unspent = tgt - used;   // 양수=못 씀(이월), 음수=초과 사용(이월 차감)
-    n.carryOver.offBalance += unspent;
+    // 멱등: 이 달이 이전에 잔고에 더했던 기여분을 먼저 되돌리고 새 값 반영.
+    //   재마감을 몇 번 눌러도 결과가 동일(무한 누적 차단).
+    var prev = prevContrib[n.id] || 0;
+    n.carryOver.offBalance += (unspent - prev);
+    newContrib[n.id] = unspent;
     if(unspent!==0) lines.push(n.name+': '+(unspent>0?'+':'')+unspent+' → 누적 '+n.carryOver.offBalance);
   });
-  closed[ym]=Date.now();
+  closed[ym]={ts:Date.now(), contrib:newContrib};
   try{ localStorage.setItem(closedKey, JSON.stringify(closed)); }catch(e){}
   saveLocal();
   render();
-  showToast('✓ '+ym+' 월마감 — 미소진 off가 이월되었습니다', 2800);
+  showToast('✓ '+ym+(isReclose?' 재마감 — 이월 갱신됨':' 월마감 — 미소진 off가 이월되었습니다'), 2800);
   if(lines.length){
     setTimeout(function(){
       alert('📋 '+ym+' 이월 내역\n\n'+lines.join('\n')+'\n\n(양수=다음 달로 이월, 음수=초과사용 차감)');
