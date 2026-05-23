@@ -454,11 +454,6 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
   <div class="modal" style="width:560px;max-height:85vh">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
       <div class="mhdr" style="margin:0">⚙️ 근무 규칙 설정 <span id="rulesWardName" style="font-size:11px;font-weight:400;color:var(--text3)"></span></div>
-      <div style="display:flex;gap:5px">
-        <button class="btn green sm" onclick="exportRules()">↑ 내보내기</button>
-        <button class="btn sm" onclick="document.getElementById('rulesImportFile').click()">↓ 불러오기</button>
-        <input type="file" id="rulesImportFile" accept=".json" style="display:none" onchange="importRules(event)">
-      </div>
     </div>
     <div class="mscroll" id="rulesList" style="max-height:calc(85vh - 140px)"></div>
     <div style="flex-shrink:0;margin-top:10px;padding:9px 11px;background:#FFF7ED;border:0.5px solid #F0C088;border-radius:7px">
@@ -882,7 +877,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
             <li><b>👤 속성 규칙</b>: 임산부·야간전담·프리셉터 페어링</li>
           </ol>
           <p style="margin:10px 0 0"><b>저장:</b> 규칙설정 하단 <b>저장</b> 클릭 → 다음 자동배치부터 반영</p>
-          <p style="margin:6px 0 0"><b>내보내기/불러오기:</b> 규칙만 JSON 파일로 저장/공유 가능 (다른 병동에 규칙 복사)</p>
+          <p style="margin:6px 0 0"><b>백업:</b> 규칙은 상단 <b>↑ 파일저장</b>의 듀티 파일에 함께 저장됩니다. 별도 규칙 파일은 필요 없습니다.</p>
         </section>
 
         <!-- ── 금지 패턴 ── -->
@@ -1524,6 +1519,13 @@ const WANTED_CATEGORIES = [
 // Phase 1: 단일 병동 모드. localStorage 키 접두사로 사용되며,
 // Phase 3에서 인스턴스 캡슐화 시 인스턴스 ID로 승격됨.
 var WARD_ID = 'default';
+
+// v3.13: 모든 데이터 저장 키에 WARD_ID를 일관 적용하는 단일 헬퍼.
+//   WARD_ID==='default'이면 기존 키를 그대로 사용(하위호환), 그 외엔 병동별 격리.
+//   본체(간호사·듀티·규칙·이벤트·락·월마감)와 히스토리·슬롯이 같은 규칙을 따르게 통일.
+//   다병동 전환 시 WARD_ID만 바꾸면 자동 격리됨.
+function dataKey(base){ return WARD_ID==='default' ? base : base+'_'+WARD_ID; }
+
 var MAX_HISTORY = 10;  // 자동 히스토리 최대 수
 var MAX_SLOTS   = 10;  // 슬롯 저장 최대 수
 var editLocked = false;  // 듀티 편집 락 상태
@@ -1783,6 +1785,10 @@ class RuleEngine {
         juniorPerShift: 1,
         minPerShift: 2,
         maxPerShift: 3,
+        // v3.13: 수간호사를 선임(senior) 인원에 포함할지 여부.
+        //   false(기본): 수간호사는 자동배치 제외 + 선임 카운트 제외 (기존 동작)
+        //   true: 수간호사가 시프트에 배정되면 선임 인원으로 인정 (staffing 선임 충족)
+        headNurseAsSenior: false,
         // v6.2: 교대(D/E/N) × 요일유형(평일/주말) 2축 정원.
         // null이면 위 단일값(seniorPerShift 등) 사용 → 기존 동작 100% 호환.
         // 값이 있으면 교대별/요일별 세분 적용.
@@ -2047,13 +2053,14 @@ class RuleEngine {
   static fromJSON(data) { return new RuleEngine(data); }
 
   // ── localStorage 저장/불러오기 ─────────────────────────────────────────
+  // v3.13: dataKey()로 WARD_ID 일관 적용. 인자 wardId는 하위호환용(미사용 시 현재 WARD_ID).
   save(wardId) {
-    var k = 'dv6_rules' + (wardId ? '_' + wardId : '');
+    var k = wardId ? 'dv6_rules_'+wardId : dataKey('dv6_rules');
     try { localStorage.setItem(k, JSON.stringify(this.toJSON())); } catch(e) {}
   }
 
   static load(wardId) {
-    var k = 'dv6_rules' + (wardId ? '_' + wardId : '');
+    var k = wardId ? 'dv6_rules_'+wardId : dataKey('dv6_rules');
     try {
       var raw = localStorage.getItem(k);
       if (raw) return RuleEngine.fromJSON(JSON.parse(raw));
@@ -2088,6 +2095,17 @@ let cfCb=null;
 const ndays=(y,m)=>new Date(y,m+1,0).getDate();
 const dow=(y,m,d)=>new Date(y,m,d).getDay();
 const key=(nid,d)=>nid+'|'+cy+'|'+cm+'|'+d;
+
+// v3.13: 선임 판정 단일 진실 공급원 (Single Source of Truth).
+//   기존엔 'n.role==='주임'||n.role==='차지''가 5곳에 복붙돼 있어, 선임 정의 변경 시
+//   누락 위험이 컸다. 이 헬퍼 하나로 통일 → 규칙(headNurseAsSenior)도 한 곳에서 반영.
+//   수간호사 포함 옵션이 켜지면 수간호사도 선임으로 인정.
+function isSenior(n){
+  if(!n) return false;
+  if(n.role==='주임' || n.role==='차지') return true;
+  if(n.role==='수간호사' && RULES.staffing && RULES.staffing.headNurseAsSenior) return true;
+  return false;
+}
 
 // v3.7: 원티드 듀티 락 헬퍼 ──────────────────────────────────────────────
 function isLocked(nid, d){ return !!lockedCells[key(nid,d)]; }
@@ -2283,7 +2301,7 @@ function offBase(){
 function closeMonthOffBalance(){
   if(editLocked){showToast('🔒 편집이 잠겨 있습니다');return;}
   var ym = cy+'-'+(cm+1);
-  var closedKey = 'dv6_offclosed';
+  var closedKey = dataKey('dv6_offclosed');
   var closed = {};
   try{ closed = JSON.parse(localStorage.getItem(closedKey)||'{}'); }catch(e){ closed={}; }
   // 구버전 호환: 과거 기록이 숫자(타임스탬프)면 객체로 승격(기여분 0으로 간주)
@@ -2379,7 +2397,7 @@ function resetAllOffBalance(){
     if(!n.carryOver) n.carryOver={offBalance:0};
     else n.carryOver.offBalance = 0;
   });
-  try{ localStorage.removeItem('dv6_offclosed'); }catch(e){}
+  try{ localStorage.removeItem(dataKey('dv6_offclosed')); }catch(e){}
   saveLocal();
   render();
   closeOv('offEditOv');
@@ -2414,7 +2432,7 @@ var cntVacThisMonth=function(nid){return cntCode(nid,'V');};
 
 function conflicts(){
   var nd=ndays(cy,cm);
-  var sr=nurses.filter(function(n){return n.role==='주임'||n.role==='차지';});
+  var sr=nurses.filter(isSenior);
   var pl=nurses.filter(function(n){return n.role==='평간호사'||n.role==='신규간호사';});
   var newNs=nurses.filter(function(n){return n.role==='신규간호사';});
   var list=[];
@@ -2948,7 +2966,7 @@ function computeAltCell(nid, d){
     // {d: {D:{ok,sr,pl}, E:{...}, N:{...}}} — 변경된 날짜만 계산하면 되지만 전체 캐시
     var st={};
     var nd2=ndays(cy,cm);
-    var srAll=nurses.filter(function(n){return n.role==='주임'||n.role==='차지';});
+    var srAll=nurses.filter(isSenior);
     var plAll=nurses.filter(function(n){return n.role==='평간호사'||n.role==='신규간호사';});
     for(var dd=1;dd<=nd2;dd++){
       st[dd]={};
@@ -2966,7 +2984,7 @@ function computeAltCell(nid, d){
     // 변경 날짜 목록
     var days={};
     cells.forEach(function(cell){ days[cell.d]=true; });
-    var srAll=nurses.filter(function(n){return n.role==='주임'||n.role==='차지';});
+    var srAll=nurses.filter(isSenior);
     var plAll=nurses.filter(function(n){return n.role==='평간호사'||n.role==='신규간호사';});
     return Object.keys(days).every(function(dStr){
       var dd=parseInt(dStr), wh=isWH(cy,cm,dd);
@@ -3307,7 +3325,7 @@ function autoFill(){
   });
 
   var head=nurses.find(function(n){return n.role==='수간호사';});
-  var sr=sorted().filter(function(n){return n.role==='주임'||n.role==='차지';});
+  var sr=sorted().filter(isSenior);
   var pl=sorted().filter(function(n){return n.role==='평간호사'||n.role==='신규간호사';});
 
   // 수간호사 배치 — 락 걸린 셀은 건너뜀
@@ -5143,7 +5161,7 @@ function renderRulesList(){
   // 1. 인력 구성
   // v3.11: 슬롯 진단 강화 — off 전원 소진 가능 여부 + 구체 문제 분석
   var _workers = nurses.filter(function(n){return n.role!=='수간호사';});
-  var _seniors = nurses.filter(function(n){return n.role==='주임'||n.role==='차지';});
+  var _seniors = nurses.filter(isSenior);
   var _ndCur = ndays(cy,cm);
   var _wkend=0; for(var _wd=1;_wd<=_ndCur;_wd++) if(isWH(cy,cm,_wd)) _wkend++;
   var _wkday = _ndCur - _wkend;
@@ -5249,6 +5267,10 @@ function renderRulesList(){
   html+=section('교대 인력 구성 (평일/주말 분리)','👥',
     _diag
     + staffGrid
+    +'<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;margin-top:8px;padding:7px 9px;background:var(--bg2);border-radius:6px">'
+    +'<input type="checkbox" id="rHeadSenior"'+(RULES.staffing.headNurseAsSenior?' checked':'')+' style="width:15px;height:15px;cursor:pointer">'
+    +'<span><b>수간호사를 선임 인원으로 포함</b><br><span style="font-size:10.5px;color:var(--text3)">수간호사가 배치된 시프트에서 선임(주임·차지) 정원에 함께 계산됩니다. (배치 정책은 그대로 — 평일 D 고정 유지)</span></span>'
+    +'</label>'
     +'<div style="font-size:12px;color:var(--text3);margin-top:7px"><span class="emoji">💡</span> off가 일부에게 쏠리면 주말 최소인원을 낮춰보세요. 위 진단의 권장 인원도 참고하세요.</div>'
   );
 
@@ -5381,6 +5403,9 @@ function saveRules(){
   RULES._cfg.staffing.maxPerShift    = perShift.D.weekday.max;
   RULES._cfg.staffing.seniorPerShift = perShift.D.weekday.senior;
   RULES._cfg.staffing.juniorPerShift = Math.max(0, perShift.D.weekday.min - perShift.D.weekday.senior);
+  // v3.13: 수간호사 선임 포함 토글
+  var hsEl = document.getElementById('rHeadSenior');
+  if(hsEl) RULES._cfg.staffing.headNurseAsSenior = hsEl.checked;
 
   RULES.set('consecutive','maxNightStreak',gi('maxNightStreak'));
   RULES.set('consecutive','offAfterNight',gi('offAfterNight'));
@@ -5439,45 +5464,8 @@ function saveRules(){
   showToast('규칙 저장 완료 ✓',2000);
 }
 
-function exportRules(){
-  var data={rulesExport:true,version:'2.0',exportedAt:new Date().toISOString(),rules:RULES.toJSON()};
-  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url;a.download='근무규칙_'+(RULES.display.wardName||'병동')+'_'+new Date().toISOString().slice(0,10)+'.json';
-  a.click();URL.revokeObjectURL(url);
-  showToast('규칙 파일 내보내기 완료',2000);
-}
-
-function importRules(evt){
-  var file=evt.target.files[0];if(!file)return;
-  var reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      var data=JSON.parse(e.target.result);
-      // v3.9.4: 듀티 파일을 잘못 import한 경우 안내
-      if(data.nurses && data.schedule){
-        alert('⚠️ 이 파일은 [듀티 파일]입니다 (간호사·듀티·규칙 모두 포함).\n\n'
-          +'규칙만 불러오려면 우상단 [↑ 파일저장] 옆 [↓ 파일열기]를 사용하세요.\n\n'
-          +'(이 기능은 규칙만 담긴 파일을 위한 것입니다.)');
-        evt.target.value='';
-        return;
-      }
-      if(!data.rulesExport||!data.rules){
-        alert('⚠️ 올바른 규칙 파일이 아닙니다.\n\n파일이 손상됐거나 다른 종류의 파일일 수 있습니다.');
-        evt.target.value='';
-        return;
-      }
-      if(!confirm('규칙을 불러오면 현재 설정이 교체됩니다. 파일: '+file.name+'. 계속하시겠습니까?')){evt.target.value='';return;}
-      RULES = RuleEngine.fromJSON(data.rules);
-      RULES.save();
-      openRules();
-      showToast('규칙 불러오기 완료 ✓ — '+(RULES.display.wardName||''),2500);
-    }catch(er){showToast('규칙 파일 오류: '+er.message);}
-    evt.target.value='';
-  };
-  reader.readAsText(file,'utf-8');
-}
+// v3.13: 규칙 전용 export/import 제거 — 듀티 파일(exportType:'ward')이 rules를 포함하므로
+//   상단 [↑ 파일저장]/[↓ 파일열기]로 일원화. 규칙 단독 백업은 불필요(중복 제거).
 
 function loadRules(){
   RULES = RuleEngine.load(); // 저장된 설정 복원, 없으면 기본값
@@ -5654,8 +5642,8 @@ function photoHTML(n, size) {
 // ── 저장 시스템 — 단일병동 히스토리(10) + 슬롯(10) ────────────────────────
 // 키에 WARD_ID 접두사 사용 → Phase 3 캡슐화 시 인스턴스별 격리 가능
 
-function wardHistKey(){ return 'dv6_hist_' + WARD_ID; }
-function wardSlotKey(){ return 'dv6_slot_' + WARD_ID; }
+function wardHistKey(){ return dataKey('dv6_hist'); }
+function wardSlotKey(){ return dataKey('dv6_slot'); }
 
 // 현재 병동 스냅샷 생성
 function makeSnap(label){
@@ -6101,7 +6089,9 @@ function exportJSON(){
     var now=new Date();
     function p(n){return String(n).padStart(2,'0');}
     var ts=now.getFullYear()+p(now.getMonth()+1)+p(now.getDate())+'_'+p(now.getHours())+p(now.getMinutes());
-    a.href=url;a.download='듀티_'+(RULES.display.wardName||'병동')+'_'+cy+'-'+String(cm+1).padStart(2,'0')+'_'+ts+'.json';a.click();
+    // v3.13: 파일명 sanitize — 특수문자 제거, wardName 비면 WARD_ID 폴백
+    var wardLabel=(RULES.display.wardName||WARD_ID||'병동').replace(/[\\/:*?"<>|]/g,'').trim()||'병동';
+    a.href=url;a.download='듀티_'+wardLabel+'_'+cy+'-'+String(cm+1).padStart(2,'0')+'_'+ts+'.json';a.click();
     URL.revokeObjectURL(url);
     showToast('파일 저장 완료 ✓',2000);
   }catch(e){showToast('파일 저장 실패: '+e.message);}
@@ -6115,12 +6105,15 @@ function importJSON(evt){
     try{
       var data=JSON.parse(e.target.result);
 
-      // v3.9.4: 다른 종류의 JSON 파일 친절 안내
-      if(data.rulesExport===true){
-        alert('⚠️ 이 파일은 [규칙설정 파일]입니다.\n\n'
-          +'파일저장(파일열기)이 아니라 [⚙️ 규칙설정 → ↓ 불러오기]를 사용하세요.\n\n'
-          +'· 듀티 파일: 간호사 목록 + 듀티표 + 규칙 + 원티드 모두 포함\n'
-          +'· 규칙 파일: 규칙 설정만 포함 (다른 병동에 규칙 복사용)');
+      // v3.13: 구버전 규칙 전용 파일(rulesExport)도 흡수 — 규칙만 적용 (전용 import 폐지)
+      if(data.rulesExport===true && data.rules){
+        if(confirm('이 파일은 [규칙 설정만] 담긴 구버전 파일입니다.\n현재 규칙을 이 파일의 규칙으로 교체할까요?\n(간호사·듀티는 그대로 유지됩니다.)')){
+          RULES = RuleEngine.fromJSON(data.rules);
+          RULES.save();
+          if(document.getElementById('rulesOv').classList.contains('open')) openRules();
+          render();
+          showToast('규칙 적용 완료 ✓',2200);
+        }
         evt.target.value='';
         return;
       }
@@ -6305,15 +6298,14 @@ function _safeSet(key, value){
 }
 
 function saveLocal(silent){
-  var payload = {
-    'dv6_n':     JSON.stringify(nurses),
-    'dv6_i':     String(nextId),
-    'dv6_s':     JSON.stringify(schedule),
-    'dv6_evts':  JSON.stringify(customEvents),
-    'dv6_evtId': String(nextEvtId),
-    'dv6_rules': JSON.stringify(RULES),
-    'dv6_locks': JSON.stringify(lockedCells),
-  };
+  var payload = {};
+  payload[dataKey('dv6_n')]     = JSON.stringify(nurses);
+  payload[dataKey('dv6_i')]     = String(nextId);
+  payload[dataKey('dv6_s')]     = JSON.stringify(schedule);
+  payload[dataKey('dv6_evts')]  = JSON.stringify(customEvents);
+  payload[dataKey('dv6_evtId')] = String(nextEvtId);
+  payload[dataKey('dv6_rules')] = JSON.stringify(RULES);
+  payload[dataKey('dv6_locks')] = JSON.stringify(lockedCells);
   var firstErr = null;
   for(var k in payload){
     var err = _safeSet(k, payload[k]);
@@ -6337,9 +6329,9 @@ function saveLocal(silent){
 
 function loadLocal(){
   try{
-    var n=localStorage.getItem('dv6_n'),i=localStorage.getItem('dv6_i'),s=localStorage.getItem('dv6_s');
-    var ev=localStorage.getItem('dv6_evts'),ei=localStorage.getItem('dv6_evtId');
-    var lk=localStorage.getItem('dv6_locks');
+    var n=localStorage.getItem(dataKey('dv6_n')),i=localStorage.getItem(dataKey('dv6_i')),s=localStorage.getItem(dataKey('dv6_s'));
+    var ev=localStorage.getItem(dataKey('dv6_evts')),ei=localStorage.getItem(dataKey('dv6_evtId'));
+    var lk=localStorage.getItem(dataKey('dv6_locks'));
     if(n) nurses=JSON.parse(n);
     if(i) nextId=parseInt(i);
     if(s) schedule=JSON.parse(s);
