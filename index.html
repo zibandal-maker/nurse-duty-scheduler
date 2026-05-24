@@ -58,14 +58,18 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:13px;
 .cal-area{flex:1;overflow:hidden;padding:10px 14px 16px;display:flex;flex-direction:column;min-height:0;}
 /* v3.14.5: 표만 가로·세로 스크롤 — 통계/경고는 휩쓸리지 않게 분리 (겹침 버그 수정) */
 /* v3.14.8: flex:1(공간 다 먹음) → flex:0 1 auto(내용만큼, 넘치면 스크롤). 표 짧으면 통계행이 바로 아래 붙음. */
-.tbl-scroll{flex:0 1 auto;overflow:auto;min-height:0;}
+/* v3.15.10: 캘린더가 남는 공간을 우선 차지(grow:1)하고 최소 높이 확보 — 창 줄일 때 캘린더가 아니라
+   하단 통계/경고가 먼저 양보하도록. (이전엔 통계가 고정이라 캘린더만 찌부러졌음) */
+.tbl-scroll{flex:1 1 auto;overflow:auto;min-height:160px;}
 /* v3.14.7: 통계 행(tfoot)을 본체 스크롤 밖 별도 테이블로 분리 — 세로 스크롤에 안 잘리고 항상 하단 고정.
    가로 스크롤은 JS(syncFootScroll)로 본체와 동기화. 컬럼 너비는 본체와 동일 규칙. */
 .tbl-foot-scroll{flex-shrink:0;overflow-x:hidden;overflow-y:hidden;border-top:1.5px solid var(--bd2);}
 #tblFoot{border-collapse:collapse;table-layout:fixed;width:auto;}
-#tblFoot td{border:0.5px solid var(--bd);text-align:center;font-size:10px;font-weight:700;padding:2px 0;background:var(--bg);width:30px;min-width:30px;max-width:30px;}
+#tblFoot td{border:0.5px solid var(--bd);text-align:center;font-size:9px;font-weight:700;padding:1px 0;background:var(--bg);width:30px;min-width:30px;max-width:30px;}
 #tblFoot td.dsl{width:150px;min-width:150px;max-width:150px;text-align:right;padding-right:8px;position:sticky;left:0;z-index:1;background:var(--bg);}
-.stat-warn-wrap, .cal-area > .off-info{flex-shrink:0;}
+/* v3.15.10: 통계카드+경고는 공간 부족 시 먼저 양보(shrink 허용 + 자체 스크롤). off-info는 고정. */
+.stat-warn-wrap{flex:0 1 auto;min-height:0;overflow-y:auto;}
+.cal-area > .off-info{flex-shrink:0;}
 
 .btn{background:none;border:0.5px solid var(--bd2);border-radius:var(--r);padding:4px 9px;cursor:pointer;font-size:11px;color:var(--text);display:inline-flex;align-items:center;gap:3px;white-space:nowrap;font-family:inherit;}
 .btn:hover{background:var(--bg2);}
@@ -177,7 +181,7 @@ thead th.tdh{background:#D9F3D2!important;color:#2a7a10!important;font-weight:70
 .sb.empty{background:var(--bg3);opacity:.16;cursor:default;box-shadow:none;}
 .sb.empty:hover{opacity:.16;transform:none;}
 /* v3.13: 하단 날짜별 통계 행 (dutymate 스타일) */
-tfoot#tFoot td{text-align:center;font-size:10px;font-weight:700;padding:2px 0;border-top:0.5px solid var(--bd);background:var(--bg);}
+tfoot#tFoot td{text-align:center;font-size:9px;font-weight:700;padding:1px 0;border-top:0.5px solid var(--bd);background:var(--bg);}
 tfoot#tFoot td.dsl{text-align:right;padding-right:8px;font-size:10px;font-weight:700;position:sticky;left:0;z-index:1;background:var(--bg);}
 tfoot#tFoot tr.dsTotal td{border-top:1.5px solid var(--bd2);font-weight:800;}
 tfoot#tFoot td.understaff{color:#C0392B;background:#FBE4E4;}
@@ -191,6 +195,9 @@ td.dc{position:relative;}
 .warn-mark{position:absolute;top:0;left:1px;width:12px;height:12px;border-radius:50%;color:#fff;font-size:9px;font-weight:900;line-height:12px;text-align:center;pointer-events:none;box-shadow:0 0 0 1.5px #fff;z-index:3;}
 /* v3.14: 키보드 포커스 셀 — 파란 링으로 또렷하게 */
 td.kb-focus{box-shadow:inset 0 0 0 2px #1E6DBF, 0 0 0 1px #1E6DBF;border-radius:3px;}
+/* v3.15.3: 규칙설정 접이식 섹션 caret 회전 */
+details[open] .sec-caret{transform:rotate(90deg);}
+summary::-webkit-details-marker{display:none;}
 /* v3.14: 단축키 팝오버 키 표시 */
 .kbk{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;font-weight:700;color:#0C447C;background:#EAF1FB;border:0.5px solid #B5D4F4;border-radius:4px;padding:1px 6px;text-align:center;white-space:nowrap;}
 /* 충돌 경고 셀: 좌측 라인 대신 시프트바 테두리+글로우로 표시 (연속 셀에서도 또렷이 구분) */
@@ -224,20 +231,21 @@ td.drag-preview{outline:2px solid #FF6B00!important;outline-offset:-2px;backgrou
 .stat-warn-wrap .warn-summary{flex:1 1 48%;margin-top:0;}
 @media(max-width:900px){ .stat-warn-wrap{flex-direction:column;} }
 .stats-row{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;}
-.stc{background:var(--bg2);border-radius:var(--r);padding:5px 8px;flex:1;min-width:48px;cursor:pointer;}
+.stc{background:var(--bg2);border-radius:var(--r);padding:3px 6px;flex:1;min-width:44px;cursor:pointer;}
 .stc:hover{background:var(--bg3);}
 .stc.warnc{background:#FCEBEB;}.stc.warnc:hover{background:#F7C1C1;}
 /* v3.14.4: D/E/N(진행바 카드)은 크게, Off·연차·완료율(stc-narrow)은 글자만 들어갈 만큼 작게 */
-.stc-narrow{flex:0 1 70px;min-width:62px;padding:5px 6px;}
-.stc-narrow .stn{font-size:13px;}
-.stc-narrow .stl{font-size:8.5px;}
-.stn{font-size:15px;font-weight:700;}
-.stl{font-size:9px;color:var(--text3);margin-top:1px;}
+/* v3.15.8: 전체 축소 + 진행바 카드 폭 2/3로 (110→75px) */
+.stc-narrow{flex:0 1 62px;min-width:56px;padding:3px 5px;}
+.stc-narrow .stn{font-size:12px;}
+.stc-narrow .stl{font-size:8px;}
+.stn{font-size:13px;font-weight:700;}
+.stl{font-size:8.5px;color:var(--text3);margin-top:1px;}
 /* v3.14: 통계 카드 목표 진행 바 */
-.stc-bar{display:flex;flex-direction:column;flex:2 1 110px;}
-.stbar{height:4px;border-radius:3px;background:var(--bd2);margin-top:5px;overflow:hidden;}
-.stbar-fill{height:100%;border-radius:3px;transition:width .3s;}
-.sttgt{font-size:8.5px;color:var(--text3);margin-top:3px;}
+.stc-bar{display:flex;flex-direction:column;flex:1 1 75px;}
+.stbar{height:3px;border-radius:2px;background:var(--bd2);margin-top:4px;overflow:hidden;}
+.stbar-fill{height:100%;border-radius:2px;transition:width .3s;}
+.sttgt{font-size:8px;color:var(--text3);margin-top:2px;}
 /* v3.14: 경고 요약 박스 (GPT 목업 차용) */
 .warn-summary{margin-top:8px;border-radius:9px;padding:9px 12px;font-size:11px;}
 .warn-summary.ok{background:#EAF6EF;border:0.5px solid #B6E2CD;color:#1F8A5E;display:flex;align-items:center;gap:7px;}
@@ -593,35 +601,6 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       <div class="mhdr" style="margin:0">⚙️ 근무 규칙 설정 <span id="rulesWardName" style="font-size:11px;font-weight:400;color:var(--text3)"></span></div>
     </div>
     <div class="mscroll" id="rulesList" style="max-height:calc(85vh - 140px)"></div>
-    <div style="flex-shrink:0;margin-top:10px;padding:9px 11px;background:#FFF7ED;border:0.5px solid #F0C088;border-radius:7px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
-        <input type="checkbox" id="expAltCell" onchange="toggleAltCell(this.checked)" style="width:15px;height:15px;cursor:pointer">
-        <span><b>🧪 실험: 대안 셀 추천</b> <span style="font-size:10px;color:#A35200">베타</span></span>
-      </label>
-      <div style="font-size:10.5px;color:#7A4A10;margin-top:4px;line-height:1.5;padding-left:23px">
-        경고 셀을 <b><span id="altKeyLabel">Alt</span>+클릭</b>하면 "이 셀을 무엇으로 바꾸면 위반이 줄어드는지" 추천 패널이 뜹니다.
-        대안을 누르면 즉시 적용되고, ↩ 한 번에 되돌릴 수 있습니다. 끄면 계산이 전혀 돌지 않습니다.
-      </div>
-      <div id="altKeyRow" style="display:none;align-items:center;gap:7px;margin-top:7px;padding-left:23px;font-size:11px">
-        <span style="color:#7A4A10">실행 키:</span>
-        <select id="altKeySel" onchange="setAltKey(this.value)" style="font:inherit;font-size:11px;padding:3px 6px;border:0.5px solid var(--bd2);border-radius:5px;background:var(--bg);color:var(--text)">
-          <option value="alt">Alt (Option) + 클릭</option>
-          <option value="ctrl">Ctrl + 클릭</option>
-          <option value="shift">Shift + 클릭</option>
-          <option value="meta">Cmd/Win + 클릭</option>
-        </select>
-      </div>
-    </div>
-    <div style="flex-shrink:0;margin-top:8px;padding:9px 11px;background:#EAF1FB;border:0.5px solid #B5D4F4;border-radius:7px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
-        <input type="checkbox" id="expKbd" onchange="toggleKbEnabled()" style="width:15px;height:15px;cursor:pointer">
-        <span><b>⌨️ 키보드 단축키</b></span>
-      </label>
-      <div style="font-size:10.5px;color:#0C447C;margin-top:4px;line-height:1.6;padding-left:23px">
-        셀을 클릭/방향키로 선택한 뒤 키보드로 빠르게 입력합니다. 모르면 평소처럼 마우스로 쓰면 됩니다.<br>
-        <b>방향키</b> 셀 이동 · <b>1~6</b> D/E/N/O/V/경조 입력 · <b>Del/0</b> 삭제 · <b>[ ]</b> 이전/다음 달 · <b>T</b> 오늘 · <b>A</b> 자동배치 · <b>Ctrl+S</b> 저장 · <b>Ctrl+Z</b> 되돌리기 · <b>?</b> 도움말
-      </div>
-    </div>
     <div style="display:flex;gap:6px;margin-top:10px;flex-shrink:0">
       <button class="btn" style="background:#1a1a18;color:#fff;border-color:#1a1a18;flex:1;font-weight:600" onclick="saveRules()">💾 저장 적용</button>
       <button class="mclose" style="margin:0;flex:1" onclick="closeOv('rulesOv')">닫기</button>
@@ -755,7 +734,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span id="aboutVersion">Version 3.15.2 · Public Release</span>
+        <span id="aboutVersion">Version 3.15.10 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -1379,7 +1358,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.15.2';
+const APP_VERSION = '3.15.10';
 const UPDATE_NOTES = [
   { v:'3.14.0', date:'2026-05', items:[
     '⌨️ 키보드 단축키 추가 — 방향키로 셀 이동, 1~6으로 D/E/N/O/V/경조 입력, Del 삭제',
@@ -4558,17 +4537,12 @@ function renderDayStats(){
     }
     return '<tr>'+tds+'</tr>';
   }
-  var totalRow='<td class="dsl">TOTAL</td>';
-  for(var d2=1;d2<=nd;d2++){
-    var c2=cnt[d2];
-    totalRow+='<td>'+(c2.D+c2.E+c2.N+c2.O)+'</td>';
-  }
+  // v3.15.9: OFF 행 복원 (TOTAL만 제거 — 항상 전체 인원수라 정보 없음)
   foot.innerHTML =
       rowFor('DAY','D','dsD')
     + rowFor('EVE','E','dsE')
     + rowFor('NIGHT','N','dsN')
-    + rowFor('OFF','O','dsO')
-    + '<tr class="dsTotal">'+totalRow+'</tr>';
+    + rowFor('OFF','O','dsO');
 }
 
 function renderStats(cf, pvList){
@@ -5941,7 +5915,15 @@ function renderRulesList(){
   var html='';
 
   // ── 섹션 렌더 헬퍼
-  function section(title,icon,content){
+  function section(title,icon,content,collapsible){
+    if(collapsible){
+      // 접이식 — 평소 접혀 공간 절약, 클릭 시 펼침 (실험적·평가용 섹션)
+      return '<details style="margin-bottom:16px;border:0.5px solid var(--bd2);border-radius:8px;overflow:hidden">'
+        +'<summary style="font-size:14px;font-weight:800;color:var(--text);padding:9px 11px;cursor:pointer;background:var(--bg2);user-select:none;list-style:none;display:flex;align-items:center;gap:6px">'
+        +'<span style="font-size:11px;color:var(--text3);transition:transform .15s" class="sec-caret">▶</span>'
+        +'<span class="emoji">'+icon+'</span> '+title+'</summary>'
+        +'<div style="padding:11px">'+content+'</div></details>';
+    }
     return '<div style="margin-bottom:16px"><div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid var(--bd2)"><span class="emoji">'+icon+'</span> '+title+'</div>'+content+'</div>';
   }
   function row(label,input,hint){
@@ -6170,13 +6152,13 @@ function renderRulesList(){
     +row('1인당 월 한도',numInput('wlPerNurse',WL.perNurseMonth,0,15),'건 (0=무제한, 권장: 2~4)')
   );
 
-  // 9. 이전 달 패턴 학습
+  // 9. 이전 달 패턴 학습 (실험적) — 접이식
   html+=section('이전 달 패턴 학습 (실험적)','🧠',
     '<div style="font-size:10px;color:#633806;margin-bottom:8px;padding:6px 8px;background:#FAEEDA;border-radius:6px">⚠️ 실험적 기능입니다. 결과가 이상할 경우 OFF 후 자동배치를 다시 실행하세요.</div>'
     +row('패턴 학습 사용',chkInput('plEnabled',R.patternLearning.enabled,'ON — 이전 달 배치를 참고해 유사 패턴 배정'),'')
     +row('학습 가중치',numInput('plWeight',R.patternLearning.weight,0,1,0.05),'0=무시 ~ 1=강하게 반영')
     +row('참조할 이전 달 수',numInput('plLookback',R.patternLearning.lookbackMonths,1,3),'개월')
-  );
+  , true);
 
   // 10. 피로도 점수 가중치 (맨 아래 — 평가 전용, 메인 알고리듬 무관)
   var FG=R.fatigue;
@@ -6199,7 +6181,31 @@ function renderRulesList(){
     +'<div style="font-size:10px;font-weight:700;color:var(--text2);margin:10px 0 4px">색 구간 (월 합산)</div>'
     +row('양호 상한',numInput('fgLowMax',FG.lowMax,10,200),'점 이하 = 초록')
     +row('보통 상한',numInput('fgMidMax',FG.midMax,20,300),'점 이하 = 주황, 초과 = 빨강')
-  );
+  , true);
+
+  // 11. 대안 셀 추천 (실험) — 접이식, 스크롤 영역 안으로 (고정 점유 제거)
+  html+=section('실험: 대안 셀 추천','🧪',
+    '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">'
+    +'<input type="checkbox" id="expAltCell" onchange="toggleAltCell(this.checked)" style="width:15px;height:15px;cursor:pointer">'
+    +'<span><b>대안 셀 추천 사용</b> <span style="font-size:10px;color:#A35200">베타</span></span></label>'
+    +'<div style="font-size:10.5px;color:#7A4A10;margin-top:6px;line-height:1.5">'
+    +'경고 셀을 <b><span id="altKeyLabel">Alt</span>+클릭</b>하면 "이 셀을 무엇으로 바꾸면 위반이 줄어드는지" 추천 패널이 뜹니다. 대안을 누르면 즉시 적용되고, ↩ 한 번에 되돌릴 수 있습니다. 끄면 계산이 전혀 돌지 않습니다.</div>'
+    +'<div id="altKeyRow" style="display:none;align-items:center;gap:7px;margin-top:7px;font-size:11px">'
+    +'<span style="color:#7A4A10">실행 키:</span>'
+    +'<select id="altKeySel" onchange="setAltKey(this.value)" style="font:inherit;font-size:11px;padding:3px 6px;border:0.5px solid var(--bd2);border-radius:5px;background:var(--bg);color:var(--text)">'
+    +'<option value="alt">Alt (Option) + 클릭</option><option value="ctrl">Ctrl + 클릭</option>'
+    +'<option value="shift">Shift + 클릭</option><option value="meta">Cmd/Win + 클릭</option></select></div>'
+  , true);
+
+  // 12. 키보드 단축키 — 접이식
+  html+=section('키보드 단축키','⌨️',
+    '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">'
+    +'<input type="checkbox" id="expKbd" onchange="toggleKbEnabled()" style="width:15px;height:15px;cursor:pointer">'
+    +'<span><b>키보드 단축키 사용</b></span></label>'
+    +'<div style="font-size:10.5px;color:#0C447C;margin-top:6px;line-height:1.6">'
+    +'셀을 클릭/방향키로 선택한 뒤 키보드로 빠르게 입력합니다. 모르면 평소처럼 마우스로 쓰면 됩니다.<br>'
+    +'<b>방향키</b> 셀 이동 · <b>1~6</b> D/E/N/O/V/경조 입력 · <b>Del/0</b> 삭제 · <b>[ ]</b> 이전/다음 달 · <b>T</b> 오늘 · <b>A</b> 자동배치 · <b>Ctrl+S</b> 저장 · <b>Ctrl+Z</b> 되돌리기 · <b>?</b> 도움말</div>'
+  , true);
 
   document.getElementById('rulesList').innerHTML=html;
 }
@@ -6871,15 +6877,19 @@ function renderCards(){
     var rv=remVac(n);var oU=cntOff(n.id);var yr=yrs(n.joinDate);
     var vcCls=rv<=0?'p-out':rv<=3?'p-warn':'p-ok';
     var isSel=selNid===n.id;
-    return '<div class="ncard'+(isSel?' sel2':'')+'" id="nc-'+n.id+'"'
-      +' draggable="true"'
+    var isEditing=editNid===n.id;
+    // v3.15.7: 편집 모드 카드는 드래그 비활성화 (편집 중 순서변경이 폼과 충돌해 화면이 깨지던 버그)
+    var dragAttrs = isEditing ? '' :
+      ' draggable="true"'
       +' ondragstart="onCardDragStart(event,'+n.id+')"'
       +' ondragover="onCardDragOver(event,'+n.id+')"'
       +' ondrop="onCardDrop(event,'+n.id+')"'
-      +' ondragleave="onCardDragLeave(event)"'
+      +' ondragleave="onCardDragLeave(event)"';
+    return '<div class="ncard'+(isSel?' sel2':'')+(isEditing?' editing':'')+'" id="nc-'+n.id+'"'
+      +dragAttrs
       +' onclick="selCard('+n.id+')">'
       +'<div class="nct">'
-      +'<span class="drag-handle" title="드래그로 순서 변경" onclick="event.stopPropagation()">⠿</span>'
+      +'<span class="drag-handle" title="'+(isEditing?'편집 중에는 순서 변경 불가':'드래그로 순서 변경')+'" onclick="event.stopPropagation()" style="'+(isEditing?'opacity:.25;cursor:default':'')+'">⠿</span>'
       +photoHTML(n,'lg')
       +'<div class="ni2">'+'<div style="display:flex;align-items:center;gap:4px;line-height:1.3;flex-wrap:wrap">'+'<span style="font-size:12px;font-weight:700">'+n.name+'</span>'+'<span class="nbadge" style="background:'+RBG[n.role]+';color:'+RCOL[n.role]+'">'+n.role+'</span>'+attrSummary(n)+'</div>'+(n.birthday?'<div class="ncs" style="margin-top:2px">🎂 '+n.birthday+'</div>':'')+'<div class="ncs" style="margin-top:1px">'+(n.joinDate?n.joinDate.slice(0,7)+' 입사 · '+yr+'년차':'입사일 미입력')+'</div>'+(n.memo?'<div class="ncs" style="margin-top:1px;color:var(--text3)">'+n.memo+'</div>':'')+'</div>'
       +'<div class="ncv '+vcCls+'" style="padding:2px 5px;border-radius:6px;font-size:9px">연차 '+rv+'일 남음<br><span style="font-weight:400;color:var(--text2)">사용 '+cntVacYear(n.id,cy)+'/'+(n.vacTotal||0)+'일 ('+cy+'년)</span><br><span style="font-weight:400;color:var(--text2)">Off '+oU+'/'+(n.role==='수간호사'?'—':Q)+'</span></div></div>'
