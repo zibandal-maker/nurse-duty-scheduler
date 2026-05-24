@@ -116,15 +116,14 @@ th.sun{background:#FAE8E8!important;color:#A32D2D!important;}
 tbody tr{height:40px;}
 tbody td{border:0.5px solid var(--bd);vertical-align:middle;padding:0;overflow:hidden;}
 
-tbody td.ncell{width:150px;min-width:150px;padding:3px 6px;background:var(--bg);position:sticky;left:0;z-index:1;border-right:0.5px solid var(--bd2);cursor:pointer;vertical-align:middle;}
+tbody td.ncell{width:150px;min-width:150px;padding:3px 6px;background:var(--bg);position:sticky;left:0;z-index:5;border-right:0.5px solid var(--bd2);cursor:pointer;vertical-align:middle;}
 tbody td.ncell:hover{background:var(--bg2);}
 /* v3.15: 피로도 점수 막대 */
-.nl3{margin-top:2px;}
-.fatbar{display:inline-flex;align-items:center;gap:4px;cursor:pointer;}
-.fatbar-track{width:52px;height:2px;border-radius:2px;background:var(--bg3);overflow:hidden;}
-.fatbar-fill{display:block;height:100%;border-radius:2px;transition:width .3s;}
-.fatbar-num{font-size:8px;font-weight:700;min-width:15px;color:var(--text3);}
-.fatbar:hover .fatbar-track{box-shadow:0 0 0 1.5px var(--bd2);}
+/* v3.15.2: 피로도 = 색점+숫자 (이름줄에 인라인 배치) */
+.fatdot{display:inline-flex;align-items:center;gap:3px;cursor:pointer;margin-left:5px;vertical-align:middle;}
+.fatdot-c{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.fatdot-n{font-size:9px;font-weight:700;color:var(--text3);}
+.fatdot:hover .fatdot-c{box-shadow:0 0 0 2px var(--bg3);}
 
 /* 2-line nurse label */
 .nl1{display:flex;align-items:center;gap:3px;line-height:1;}
@@ -756,7 +755,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span id="aboutVersion">Version 3.15.1 · Public Release</span>
+        <span id="aboutVersion">Version 3.15.2 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -1380,7 +1379,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.15.1';
+const APP_VERSION = '3.15.2';
 const UPDATE_NOTES = [
   { v:'3.14.0', date:'2026-05', items:[
     '⌨️ 키보드 단축키 추가 — 방향키로 셀 이동, 1~6으로 D/E/N/O/V/경조 입력, Del 삭제',
@@ -4401,26 +4400,24 @@ function render(){
     var workDays=0;
     for(var _wd=1;_wd<=nd;_wd++){ var _s=schedule[key(n.id,_wd)]; if(_s==='D'||_s==='E'||_s==='N') workDays++; }
     var workPill='<span class="pill p-work" title="이번 달 실제 근무일수 (D+E+N)">근무 '+workDays+'일</span>';
-    // v3.15: 피로도 점수 막대 (FRI 방법론 기반). 수간호사는 고정 주간이라 제외.
-    var fatPill='';
+    // v3.15.2: 피로도 = 색점+숫자 (이름줄에 배치, 별도 행 미사용 — 셀 높이 균형 유지)
+    var fatDot='';
     if(n.role!=='수간호사' && RULES.fatigue && RULES.fatigue.enabled){
       var fg=fatigueScore(n.id);
       var fgColor = fg.level==='low'?'#2EA875':(fg.level==='mid'?'#E2941C':'#E0506E');
       var fgLabel = fg.level==='low'?'양호':(fg.level==='mid'?'보통':'과로');
-      var fgPct = Math.min(100, Math.round(fg.total/ (RULES.fatigue.midMax*1.4) *100));
       var fgTip='피로도 '+fg.total+'점 ('+fgLabel+') — 야간 '+fg.nights+'회·최대연속 '+fg.maxStreak+'일·역회전 '+fg.reverses+'회·단일off '+fg.singleOffs+'회 | FRI 방법론 기반';
-      fatPill='<span class="fatbar" title="'+fgTip+'" onclick="event.stopPropagation();showFatigue('+n.id+')">'
-        +'<span class="fatbar-track"><span class="fatbar-fill" style="width:'+fgPct+'%;background:'+fgColor+'"></span></span>'
-        +'<span class="fatbar-num" style="color:'+fgColor+'">'+fg.total+'</span></span>';
+      fatDot='<span class="fatdot" title="'+fgTip+'" onclick="event.stopPropagation();showFatigue('+n.id+')">'
+        +'<span class="fatdot-c" style="background:'+fgColor+'"></span>'
+        +'<span class="fatdot-n">'+fg.total+'</span></span>';
     }
     // 생일 체크 (이번 달)
     var isBday=false;
     if(n.birthday){var bp=n.birthday.split('-');isBday=parseInt(bp[1])===cm+1;}
     var bdayIcon=isBday?' 🎂':'';
     tb+='<tr><td class="ncell" onclick="onNameClick('+n.id+')">'
-      +'<div class="nl1">'+photoHTML(n,'sm')+'<span class="nn">'+n.name+bdayIcon+'</span><span class="nbadge" style="background:'+RBG[n.role]+';color:'+RCOL[n.role]+'">'+n.role+'</span>'+dutyAttrIcons(n)+'</div>'
+      +'<div class="nl1">'+photoHTML(n,'sm')+'<span class="nn">'+n.name+bdayIcon+'</span><span class="nbadge" style="background:'+RBG[n.role]+';color:'+RCOL[n.role]+'">'+n.role+'</span>'+dutyAttrIcons(n)+fatDot+'</div>'
       +'<div class="nl2">'+workPill+offPill+vacPill+'</div>'
-      +(fatPill?'<div class="nl3">'+fatPill+'</div>':'')
       +'</td>';
     for(var d=1;d<=nd;d++){
       var w2=dow(cy,cm,d);var h2=isH(cy,cm,d);
