@@ -412,7 +412,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
     </div>
   </div>
   <div class="topbar-r">
-    <button class="btn b-primary" onclick="confirmDo('자동배치','이번 달 배치를 초기화하고 알고리듬으로 재배치합니다.',autoFill)">✦ 자동배치</button>
+    <button class="btn b-primary" onclick="startAutoFill()">✦ 자동배치</button>
     <button class="btn b-reset" onclick="confirmDo('초기화','이번 달 모든 듀티를 삭제합니다.',clearMonth)">↺ 초기화</button>
     <span class="tb-sep"></span>
     <button class="btn b-nurse" onclick="togglePanel()">👥 간호사</button>
@@ -556,6 +556,10 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
   <div class="modal">
     <div class="mhdr" id="cfTitle"></div>
     <p style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6" id="cfMsg"></p>
+    <label id="cfCheckRow" style="display:none;align-items:flex-start;gap:8px;cursor:pointer;font-size:12px;padding:9px 11px;background:var(--bg2);border-radius:8px;margin-bottom:12px">
+      <input type="checkbox" id="cfCheck" style="width:15px;height:15px;margin-top:1px;cursor:pointer;flex-shrink:0">
+      <span><b id="cfCheckLabel"></b><br><span id="cfCheckHint" style="color:var(--text3);font-size:11px"></span></span>
+    </label>
     <div class="mbtns">
       <button class="btn" onclick="closeOv('cfOv')">취소</button>
       <button class="btn red" id="cfOk">확인</button>
@@ -789,7 +793,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span id="aboutVersion">Version 3.16.3 · Public Release</span>
+        <span id="aboutVersion">Version 3.16.4 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -1038,6 +1042,15 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
         <section id="help-auto" style="margin-top:24px">
           <h2 style="font-size:16px;font-weight:700;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--bd2)">✦ 자동배치</h2>
           <p><b>실행:</b> 상단 <b>✦ 자동배치</b> 버튼 → 확인 → 약 1초 후 완료</p>
+          <div style="margin-top:8px;padding:10px 12px;background:var(--bg2);border-radius:8px">
+            <p style="font-weight:700;color:var(--text);margin:0 0 4px">🧩 미리 배치 + 나머지만 자동 채우기</p>
+            <p style="font-size:12px;line-height:1.7;margin:0">수간호사가 일부 인원을 <b>미리 손으로 배치</b>해 두고, 빈 칸만 자동으로 채울 수 있습니다. 칸을 채워둔 상태에서 자동배치를 누르면 <b>"기존 배치 유지"</b> 선택이 나타납니다.</p>
+            <ul style="padding-left:18px;margin:6px 0 0;font-size:12px;line-height:1.8">
+              <li><b>체크 ON</b>(기본): 미리 채운 칸은 그대로 두고 <b>빈 칸만</b> 자동 배치</li>
+              <li><b>체크 OFF</b>: 원티드(🔒)만 남기고 <b>전체를 새로</b> 배치</li>
+            </ul>
+            <p style="font-size:11px;color:var(--text3);margin:6px 0 0">※ 원티드 락(🔒)은 이 옵션과 무관하게 <b>항상 보존</b>됩니다. (개인 신청 확정분과 수간호사 임의 배치는 별개)</p>
+          </div>
           <h3 style="font-size:13px;font-weight:700;margin:12px 0 4px">동작 원리</h3>
           <ul style="padding-left:18px;margin:0;font-size:12px">
             <li>가중치 기반 확률 선택 알고리듬</li>
@@ -1470,8 +1483,11 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.3';
+const APP_VERSION = '3.16.4';
 const UPDATE_NOTES = [
+  { v:'3.16.4', date:'2026-05', items:[
+    '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
+  ]},
   { v:'3.16.0', date:'2026-05', items:[
     '🔋 피로도 점수 — 영국 HSE Fatigue Risk Index 방법론 기반 평가 지표(근무 타이밍·누적·회전방향). 간호사 이름 옆 색점+숫자, 클릭 시 상세. 자동배치에는 영향 없는 순수 평가용',
     '🔁 개인 반복 근무 패턴 — 간호사별 패턴(예: NNNOO) 등록 시 자동배치에서 순환 적용(야간전담·고정근무자용). 연차·원티드는 보존',
@@ -2662,6 +2678,8 @@ let selNid=null;
 let editNid=null;  // v3.13: 편집 모드인 간호사 id (null이면 보기 모드)
 let cy=new Date().getFullYear();
 let cm=new Date().getMonth();
+// v3.16.4: 자동배치 시 '기존 배치 유지'(빈 셀만 채움) 여부 — startAutoFill에서 설정
+var keepFilledCells=false;
 let dragSrc=null;
 let cfCb=null;
 // v3.14: 키보드 단축키 — 현재 포커스된 셀 {nid,d} (null=없음). 기본 켜짐, 끌 수 있음.
@@ -3961,6 +3979,30 @@ function lexCompare(a, b){
   return 0;
 }
 
+// v3.16.4: 자동배치 진입 — 미리 배치된(락 아닌) 셀이 있으면 '기존 배치 유지' 옵션 제공
+function startAutoFill(){
+  if(editLocked){showToast('🔒 편집이 잠겨 있습니다 — 자동배치를 하려면 잠금을 해제하세요');return;}
+  var nd=ndays(cy,cm), filled=0;
+  nurses.forEach(function(n){
+    for(var d=1;d<=nd;d++){
+      if(isLocked(n.id,d)) continue;            // 원티드 락은 별개(항상 보존)
+      var v=schedule[key(n.id,d)];
+      if(v!==undefined && v!=='') filled++;
+    }
+  });
+  if(filled>0){
+    confirmDo('자동배치',
+      '미리 배치해 둔 칸이 '+filled+'개 있습니다. 어떻게 채울까요?',
+      function(keep){ keepFilledCells=!!keep; autoFill(); },
+      { label:'기존 배치 유지 (빈 칸만 자동으로 채움)',
+        hint:'끄면 원티드(🔒)만 남기고 전체를 새로 배치합니다.',
+        def:true });
+  } else {
+    confirmDo('자동배치','이번 달 배치를 알고리듬으로 채웁니다.',
+      function(){ keepFilledCells=false; autoFill(); });
+  }
+}
+
 function autoFill(){
   if(editLocked){showToast('🔒 편집이 잠겨 있습니다 — 자동배치를 하려면 잠금을 해제하세요');return;}
   // v3.9.4: 즉시 진행 토스트 (대규모 인원에서 무반응으로 느껴지지 않게)
@@ -4033,14 +4075,22 @@ function autoFill(){
   });
 
   // 락 셀 백업 (각 시도 전 복원용) — 락은 모든 시도에서 동일하게 보존
+  // v3.16.4: '기존 배치 유지' 옵션 — 켜지면 값이 있는 모든 셀(락 아니어도)을 보존
   var lockedBackup = {};
   var lockedCount = 0;
+  var preserveExisting = !!(typeof keepFilledCells!=='undefined' && keepFilledCells);
+  var preservedCount = 0;
   nurses.forEach(function(n){
     for(var d=1;d<=nd;d++){
+      var k = key(n.id,d);
       if(isLocked(n.id, d)){
         lockedCount++;
-        var lc = schedule[key(n.id,d)];
-        if(lc!==undefined) lockedBackup[key(n.id,d)] = lc;
+        var lc = schedule[k];
+        if(lc!==undefined) lockedBackup[k] = lc;
+      } else if(preserveExisting){
+        // 락은 아니지만 이미 값이 있는 셀 → 보존 대상에 추가 (빈 셀만 자동 채움)
+        var v = schedule[k];
+        if(v!==undefined && v!=='' ){ lockedBackup[k] = v; preservedCount++; }
       }
     }
   });
@@ -4098,15 +4148,19 @@ function autoFill(){
   // ════════════════════════════════════════════════════════════════════════
   function _runGreedyOnce(STRAT, rng, nd, R, lockedBackup){
 
-  // 이 시도 전용: 락 외 모든 셀 비우고, 락 셀은 백업값으로 복원
+  // v3.16.4: '고정 셀' = 락 셀 + (기존 배치 유지 옵션의) 보존 셀.
+  //   lockedBackup에 키가 있으면 그 값으로 복원하고, 배치 로직은 이 셀을 건드리지 않는다.
+  //   isFixed(nid,d)로 통합 판정 → 락/보존을 동일하게 취급(빈 셀만 자동 채움).
+  function isFixed(nid, dd){ return lockedBackup[key(nid,dd)]!==undefined || isLocked(nid,dd); }
+
+  // 이 시도 전용: 고정(락+보존) 외 모든 셀 비우고, 고정 셀은 백업값으로 복원
   nurses.forEach(function(n){
     for(var dd=1; dd<=nd; dd++){
       var k = key(n.id, dd);
-      if(isLocked(n.id, dd)){
-        if(lockedBackup[k]!==undefined) schedule[k] = lockedBackup[k];
-        else delete schedule[k];
+      if(lockedBackup[k]!==undefined){
+        schedule[k] = lockedBackup[k];   // 락 또는 보존 셀 → 원래 값 복원
       } else {
-        delete schedule[k];
+        delete schedule[k];              // 그 외 → 비우고 자동 채움 대상
       }
     }
   });
@@ -4115,10 +4169,10 @@ function autoFill(){
   var sr=sorted().filter(isSenior);
   var pl=sorted().filter(function(n){return n.role==='평간호사'||n.role==='신규간호사';});
 
-  // 수간호사 배치 — 락 걸린 셀은 건너뜀
+  // 수간호사 배치 — 고정 셀(락/보존)은 건너뜀
   if(head){
     for(var d=1;d<=nd;d++){
-      if(isLocked(head.id, d)) continue; // 원티드 보존
+      if(isFixed(head.id, d)) continue; // 원티드 락 + 기존 배치 보존
       var w=dow(cy,cm,d),h=isH(cy,cm,d);
       if(w===0&&R.headNurse.sundayOff) schedule[key(head.id,d)]='O';
       else if(h&&R.headNurse.holidayOff) schedule[key(head.id,d)]='O';
@@ -4345,7 +4399,7 @@ function autoFill(){
   workers.forEach(function(n){
     if(n.role!=='신규간호사') return;
     for(var dd=1; dd<=nd; dd++){
-      if(isLocked(n.id, dd) && schedule[key(n.id, dd)]==='N'){
+      if(isFixed(n.id, dd) && schedule[key(n.id, dd)]==='N'){
         newNurseNightCount[n.id] = (newNurseNightCount[n.id]||0) + 1;
       }
     }
@@ -4360,7 +4414,7 @@ function autoFill(){
     offSoFar[n.id] = 0;
     // 락으로 이미 확정된 O/V도 off로 카운트 (V=연차는 off 아님, O만)
     for(var dd=1; dd<=nd; dd++){
-      if(isLocked(n.id, dd)){
+      if(isFixed(n.id, dd)){
         var lc = schedule[key(n.id, dd)];
         if(lc==='O') offSoFar[n.id]++;
       }
@@ -4374,7 +4428,7 @@ function autoFill(){
     // v3.7: 락된 셀은 이미 배정값이 있으므로 그 값을 asgn에 미리 채워 다른 사람과의 중복 방지
     var asgn={};
     workers.forEach(function(n){
-      if(isLocked(n.id, d)){
+      if(isFixed(n.id, d)){
         var lockedCode = schedule[key(n.id, d)];
         // 락 코드가 D/E/N일 때만 asgn에 반영 (인력 카운트에 들어감)
         if(lockedCode==='D' || lockedCode==='E' || lockedCode==='N'){
@@ -4383,8 +4437,8 @@ function autoFill(){
       }
     });
 
-    var avSr=rot(sr.filter(function(n){return !forced[n.id] && !asgn[n.id] && !isLocked(n.id,d);}),d-1+STRAT.rotSr);
-    var avPl=rot(pl.filter(function(n){return !forced[n.id] && !asgn[n.id] && !isLocked(n.id,d);}),d+1+STRAT.rotPl);
+    var avSr=rot(sr.filter(function(n){return !forced[n.id] && !asgn[n.id] && !isFixed(n.id,d);}),d-1+STRAT.rotSr);
+    var avPl=rot(pl.filter(function(n){return !forced[n.id] && !asgn[n.id] && !isFixed(n.id,d);}),d+1+STRAT.rotPl);
 
     ['D','E','N'].forEach(function(sh){
       var fSr=avSr.filter(function(x){return !asgn[x.id];});
@@ -4412,7 +4466,7 @@ function autoFill(){
 
     workers.forEach(function(n){
       // v3.7: 락된 셀은 건드리지 않음 — 기존 schedule 값 유지
-      if(isLocked(n.id, d)){
+      if(isFixed(n.id, d)){
         // 단, st(상태)는 락된 셀 값으로 업데이트해야 다음날 계산이 맞음
         var lockedCode = schedule[key(n.id, d)] || 'O';
         st[n.id] = RULES.nextState(st[n.id], lockedCode);
@@ -5527,12 +5581,25 @@ function setCM(nid,d,code){
 }
 function delCM(nid,d){delete schedule[key(nid,d)];closeOv('cellOv');render();}
 
-function confirmDo(title,msg,cb){
+function confirmDo(title,msg,cb,checkOpt){
   document.getElementById('cfTitle').textContent=title;
   document.getElementById('cfMsg').textContent=msg;
+  // v3.16.4: 선택적 체크박스 (예: 자동배치의 '기존 배치 유지')
+  var row=document.getElementById('cfCheckRow'), chk=document.getElementById('cfCheck');
+  if(checkOpt){
+    document.getElementById('cfCheckLabel').textContent=checkOpt.label||'';
+    document.getElementById('cfCheckHint').textContent=checkOpt.hint||'';
+    chk.checked=!!checkOpt.def;
+    row.style.display='flex';
+  } else {
+    row.style.display='none'; chk.checked=false;
+  }
   cfCb=cb;document.getElementById('cfOv').classList.add('open');
 }
-document.getElementById('cfOk').onclick=function(){closeOv('cfOv');if(cfCb){cfCb();cfCb=null;}};
+document.getElementById('cfOk').onclick=function(){
+  var checked=document.getElementById('cfCheck').checked;
+  closeOv('cfOv');if(cfCb){cfCb(checked);cfCb=null;}
+};
 
 function closeOv(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.ov').forEach(function(ov){
