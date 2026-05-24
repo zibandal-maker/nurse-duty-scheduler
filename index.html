@@ -63,7 +63,7 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:13px;
    가로 스크롤은 JS(syncFootScroll)로 본체와 동기화. 컬럼 너비는 본체와 동일 규칙. */
 .tbl-foot-scroll{flex-shrink:0;overflow-x:hidden;overflow-y:hidden;border-top:1.5px solid var(--bd2);}
 #tblFoot{border-collapse:collapse;table-layout:fixed;width:auto;min-width:100%;}
-#tblFoot td{border:0.5px solid var(--bd);text-align:center;font-size:10px;font-weight:700;padding:2px 0;background:var(--bg);width:28px;min-width:28px;max-width:28px;}
+#tblFoot td{border:0.5px solid var(--bd);text-align:center;font-size:10px;font-weight:700;padding:2px 0;background:var(--bg);width:30px;min-width:30px;max-width:30px;}
 #tblFoot td.dsl{width:150px;min-width:150px;max-width:150px;text-align:right;padding-right:8px;position:sticky;left:0;z-index:1;background:var(--bg);}
 .stat-warn-wrap, .cal-area > .off-info{flex-shrink:0;}
 
@@ -99,14 +99,14 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:13px;
 .moremenu-divider{height:0.5px;background:var(--bd);margin:3px 0;}
 
 /* TABLE — fixed layout, width auto so nurse col gap doesn't stretch */
-table{border-collapse:collapse;table-layout:fixed;width:auto;min-width:100%;}
+table{border-collapse:collapse;table-layout:fixed;width:auto;}
 
 /* v3.14.9: thead 요소 자체에 sticky — th에 거는 sticky는 table 레이아웃+배율 환경에서
    스크롤 컨테이너를 못 잡아 풀리는 버그가 있다(125% 배율에서 재현됨). thead로 옮겨 확실히 고정. */
 thead#tHead{position:sticky;top:0;z-index:10;}
 thead th{font-size:10px;font-weight:500;color:var(--text2);text-align:center;padding:2px 1px 3px;border-bottom:0.5px solid var(--bd2);background:var(--bg);overflow:hidden;box-shadow:0 1px 0 var(--bd2);}
 thead th.nc{text-align:left;padding-left:8px;width:150px;min-width:150px;font-size:11px;position:sticky;left:0;z-index:11;background:var(--bg);}
-thead th.dh{width:28px;min-width:28px;max-width:28px;vertical-align:top;background:var(--bg);}
+thead th.dh{width:30px;min-width:30px;max-width:30px;vertical-align:top;background:var(--bg);}
 
 th.sat{background:#E8EEF4!important;color:#185FA5!important;}
 th.sun{background:#FAE8E8!important;color:#A32D2D!important;}
@@ -118,6 +118,13 @@ tbody td{border:0.5px solid var(--bd);vertical-align:middle;padding:0;overflow:h
 
 tbody td.ncell{width:150px;min-width:150px;padding:3px 6px;background:var(--bg);position:sticky;left:0;z-index:1;border-right:0.5px solid var(--bd2);cursor:pointer;vertical-align:middle;}
 tbody td.ncell:hover{background:var(--bg2);}
+/* v3.15: 피로도 점수 막대 */
+.nl3{margin-top:3px;}
+.fatbar{display:inline-flex;align-items:center;gap:5px;cursor:pointer;}
+.fatbar-track{width:64px;height:5px;border-radius:3px;background:var(--bg3);overflow:hidden;}
+.fatbar-fill{display:block;height:100%;border-radius:3px;transition:width .3s;}
+.fatbar-num{font-size:9px;font-weight:800;min-width:18px;}
+.fatbar:hover .fatbar-track{box-shadow:0 0 0 1.5px var(--bd2);}
 
 /* 2-line nurse label */
 .nl1{display:flex;align-items:center;gap:3px;line-height:1;}
@@ -157,7 +164,7 @@ td.pref-warn .sb:not(.empty){box-shadow:inset 0 0 0 1.5px #E67E22, 0 0 0 1px rgb
 .p-blue{background:#E6F1FB;color:#0C447C;}
 .p-work{background:#EDEAF7;color:#534AB7;}
 
-tbody td.dc{width:28px;min-width:28px;max-width:28px;padding:1px;vertical-align:middle;}
+tbody td.dc{width:30px;min-width:30px;max-width:30px;padding:1px;vertical-align:middle;}
 td.dc.sat{background:rgba(24,95,165,.07);}
 td.dc.sun{background:rgba(200,50,50,.08);}
 /* 오늘 날짜: 형광 연두 — 토(파랑)/일(빨강)과 명확히 구분 */
@@ -460,7 +467,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       style="display:flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;border:0.5px solid #B5D4F4;background:#EAF1FB;color:#0C447C;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0">
       <span style="font-size:12px">⌨</span><span id="kbChipLabel">단축키</span>
     </button>
-    <div id="kbHelpPop" style="display:none;position:absolute;bottom:calc(100% + 6px);right:0;background:var(--bg);border:0.5px solid var(--bd2);border-radius:9px;box-shadow:0 6px 22px rgba(0,0,0,.16);padding:11px 13px;width:280px;z-index:300;font-size:11px;line-height:1.7;color:var(--text)">
+    <div id="kbHelpPop" style="display:none;position:fixed;top:0;left:0;background:var(--bg);border:0.5px solid var(--bd2);border-radius:9px;box-shadow:0 6px 22px rgba(0,0,0,.16);padding:11px 13px;width:280px;z-index:9999;font-size:11px;line-height:1.7;color:var(--text)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
         <b style="font-size:12px;color:#0C447C">⌨ 키보드 단축키</b>
         <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);cursor:pointer">
@@ -756,7 +763,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:0.5px solid var(--bd2);font-size:10px;color:var(--text3)">
-        <span id="aboutVersion">Version 3.14.10 · Public Release</span>
+        <span id="aboutVersion">Version 3.15.0 · Public Release</span>
         <span>2026-05</span>
       </div>
 
@@ -1380,7 +1387,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.14.10';
+const APP_VERSION = '3.15.0';
 const UPDATE_NOTES = [
   { v:'3.14.0', date:'2026-05', items:[
     '⌨️ 키보드 단축키 추가 — 방향키로 셀 이동, 1~6으로 D/E/N/O/V/경조 입력, Del 삭제',
@@ -1978,6 +1985,28 @@ class RuleEngine {
         //   N: { weekday:{min:2,max:3,senior:1}, weekend:{min:1,max:3,senior:1} },
         // }
       },
+      // v3.15: 피로도 점수 (HSE Fatigue Risk Index 방법론 기반 단순화).
+      //   ※ 메인 자동배치 알고리듬과 무관한 순수 평가 지표. 근무표만으로 계산.
+      //   3요소: ①근무 타이밍(일주기 교란) ②누적(연속근무·회복부족) ③회전 방향(역회전).
+      //   가중치는 현장에서 조정 가능. 기본값은 N(야간)=8 기준 비례.
+      fatigue: {
+        enabled: true,
+        // ① 근무 타이밍 — 시프트별 1회당 피로 점수 (야간이 일주기 리듬 최대 교란)
+        wDay: 1,      // D 주간
+        wEve: 3,      // E 저녁
+        wNight: 8,    // N 야간 (기준값)
+        // ② 누적 — 연속근무/회복부족
+        consecFrom: 4,        // 연속근무 며칠째부터 가산 시작
+        consecStep: 1,        // 가산 시작 후 1일마다 추가 점수 (4일째 +1, 5일째 +2…)
+        singleOffPenalty: 2,  // 단일 off(근무-off-근무, 하루만 쉼) 페널티
+        nightStreak2: 3,      // 야간 2연속 추가 가중
+        nightStreak3: 6,      // 야간 3연속+ 추가 가중
+        // ③ 회전 방향 — 역회전(N→D, N→E, E→D 등 시계 반대) 1회당
+        reverseRotation: 4,
+        // 점수 구간 (월 합산 기준) — 색 표시 임계값
+        lowMax: 40,    // 이하: 양호(초록)
+        midMax: 70,    // 이하: 보통(주황), 초과: 과로(빨강)
+      },
       consecutive: {
         maxNightStreak: 3,
         offAfterNight: 1,
@@ -2122,6 +2151,7 @@ class RuleEngine {
   get weights()        { return this._cfg.weights; }
   get headNurse()      { return this._cfg.headNurse; }
   get display()        { return this._cfg.display; }
+  get fatigue()        { return this._cfg.fatigue; }
   get newNurse()       { return this._cfg.newNurse; }
   get patternLearning(){ return this._cfg.patternLearning; }
   get forbiddenPatterns(){ return this._cfg.forbiddenPatterns; }
@@ -2301,6 +2331,86 @@ function headSeniorBonus(sh, d){
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// v3.15: 피로도 점수 (HSE Fatigue Risk Index 방법론 기반 단순화)
+//   순수 평가 지표 — 자동배치 알고리듬과 무관. 근무표만으로 월 피로도 계산.
+//   3요소 합산: ①근무 타이밍 ②누적(연속·회복부족) ③회전 방향(역회전).
+// ════════════════════════════════════════════════════════════════════════
+function fatigueScore(nid){
+  var F=RULES.fatigue;
+  if(!F) return {total:0, level:'low', timing:0, cumulative:0, rotation:0, nights:0, maxStreak:0, reverses:0, singleOffs:0};
+  var nd=ndays(cy,cm);
+  // 월 시프트 배열 (1일~말일)
+  var sh=[]; for(var d=1;d<=nd;d++) sh[d]=schedule[key(nid,d)]||'';
+  var isWork=function(s){ return s==='D'||s==='E'||s==='N'; };
+
+  var timing=0, cumulative=0, rotation=0;
+  var nights=0, reverses=0, singleOffs=0, maxStreak=0, streak=0, nightStreak=0;
+
+  for(var d=1;d<=nd;d++){
+    var s=sh[d], prev=sh[d-1]||'';
+    // ① 근무 타이밍
+    if(s==='D') timing+=F.wDay;
+    else if(s==='E') timing+=F.wEve;
+    else if(s==='N'){ timing+=F.wNight; nights++; }
+
+    // ② 누적: 연속근무
+    if(isWork(s)){
+      streak++;
+      if(streak>maxStreak) maxStreak=streak;
+      if(streak>=F.consecFrom) cumulative += F.consecStep*(streak-F.consecFrom+1);
+    } else {
+      streak=0;
+    }
+    // 야간 연속
+    if(s==='N'){ nightStreak++; }
+    else {
+      if(nightStreak===2) cumulative+=F.nightStreak2;
+      else if(nightStreak>=3) cumulative+=F.nightStreak3;
+      nightStreak=0;
+    }
+    // 단일 off: 근무-off-근무 (하루만 쉼)
+    if(s==='O' && isWork(prev) && isWork(sh[d+1]||'')){ cumulative+=F.singleOffPenalty; singleOffs++; }
+
+    // ③ 회전 방향: 역회전 (N→D, N→E, E→D)
+    if(prev && s && isWork(prev) && isWork(s)){
+      var rank={D:1,E:2,N:3};
+      if(rank[prev] && rank[s] && rank[s] < rank[prev]){ rotation+=F.reverseRotation; reverses++; }
+    }
+  }
+  // 말일 야간연속 마감 처리
+  if(nightStreak===2) cumulative+=F.nightStreak2;
+  else if(nightStreak>=3) cumulative+=F.nightStreak3;
+
+  var total=Math.round(timing+cumulative+rotation);
+  var level = total<=F.lowMax ? 'low' : (total<=F.midMax ? 'mid' : 'high');
+  return {total:total, level:level, timing:Math.round(timing), cumulative:Math.round(cumulative),
+          rotation:Math.round(rotation), nights:nights, maxStreak:maxStreak, reverses:reverses, singleOffs:singleOffs};
+}
+
+// v3.15: 반복 근무 패턴 적용.
+//   패턴이 있는 간호사는 anchor 기준으로 seq를 월 전체에 순환 배치.
+//   연차(V)·경조(B)·원티드 락은 보존(패턴이 덮지 않음). 반환: 적용된 키 배열.
+function applyRepeatPattern(nid){
+  var n=getNurse(nid); if(!n) return [];
+  var rp=n.attributes && n.attributes.repeatPattern;
+  if(!rp || !rp.seq || !rp.seq.length) return [];
+  var nd=ndays(cy,cm);
+  var anchor=rp.anchor||1;          // 며칠째부터 패턴 시작 (1=1일)
+  var seq=rp.seq, L=seq.length;
+  var applied=[];
+  for(var d=1;d<=nd;d++){
+    var k=key(nid,d);
+    if(isLocked(nid,d)) continue;            // 원티드 락 보존
+    var cur=schedule[k];
+    if(cur==='V'||cur==='B') continue;        // 연차·경조 보존
+    var idx=((d-anchor)%L+L)%L;
+    var code=seq[idx];
+    if(code && code!=='-'){ schedule[k]=code; applied.push(k); }
+  }
+  return applied;
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // v3.13: 간호사 데이터 접근 계층 (Nurse Data Layer)
 //   흩어져 있던 nurses 배열 조작·속성 기본값·마이그레이션을 한 곳으로 모음.
 //   목적: ①중복 제거(같은 조회 31곳) ②새 속성 추가 시 단일 수정점
@@ -2332,6 +2442,7 @@ function defaultAttributes(){
     nightDedicated:false,  // 야간전담 — 야간만 배치
     nightExempt:false,     // 야간 면제 (건강상 사유 등)
     fixedShift:null,       // 고정 근무 'D'|'E'|'N'|null (사이클 근무자)
+    repeatPattern:null,    // v3.15: 반복 근무 패턴 {seq:['N','N','N','O','O'], anchor:1} | null
     preceptorOf:[],        // 이 간호사가 멘토하는 프리셉티 ID 배열
     targetOffOverride:null,// off 정량 수동조정 (null=자동, 숫자=덮어쓰기)
     skillLevel:2           // 숙련도(업무강도) 1=저·2=중·3=고 (데이터만, UX 미구현)
@@ -3544,6 +3655,18 @@ function autoFill(){
     {rotSr: 15, rotPl: 14, shiftBias:{D:0.95,E:1.0,N:1.05}, equityBoost:1.1, label:'야간 권장'},
   ];
 
+  // v3.15: 반복 근무 패턴 선적용 — 패턴 간호사는 패턴대로 깔고 임시 락 처리(알고리듬이 보존).
+  //   자동배치 종료 시 임시 락은 해제(원티드 락만 유지).
+  var patternTempLocks = [];
+  nurses.forEach(function(n){
+    if(n.attributes && n.attributes.repeatPattern && n.attributes.repeatPattern.enabled){
+      var keys = applyRepeatPattern(n.id);
+      keys.forEach(function(k){
+        if(!lockedCells[k]){ lockedCells[k]=true; patternTempLocks.push(k); }
+      });
+    }
+  });
+
   // 락 셀 백업 (각 시도 전 복원용) — 락은 모든 시도에서 동일하게 보존
   var lockedBackup = {};
   var lockedCount = 0;
@@ -3592,6 +3715,9 @@ function autoFill(){
 
   // ── 길 A: L1 위반만 남은 셀 unresolved 표시 ──────────────────────────────
   var unresolvedCount = _markUnresolvedCells(nd);
+
+  // v3.15: 패턴 임시 락 해제 (원티드 락은 유지). 패턴 결과 셀 자체는 남음.
+  patternTempLocks.forEach(function(k){ delete lockedCells[k]; });
 
   render();
   var cf=conflicts();
@@ -4242,7 +4368,7 @@ function render(){
 
   // colgroup for fixed widths
   var cg='<colgroup><col style="width:150px;min-width:150px">';
-  for(var d=1;d<=nd;d++) cg+='<col style="width:28px;min-width:28px;max-width:28px">';
+  for(var d=1;d<=nd;d++) cg+='<col style="width:30px;min-width:30px;max-width:30px">';
   cg+='</colgroup>';
 
   var hh='<tr><th class="nc">간호사</th>';
@@ -4282,6 +4408,18 @@ function render(){
     var workDays=0;
     for(var _wd=1;_wd<=nd;_wd++){ var _s=schedule[key(n.id,_wd)]; if(_s==='D'||_s==='E'||_s==='N') workDays++; }
     var workPill='<span class="pill p-work" title="이번 달 실제 근무일수 (D+E+N)">근무 '+workDays+'일</span>';
+    // v3.15: 피로도 점수 막대 (FRI 방법론 기반). 수간호사는 고정 주간이라 제외.
+    var fatPill='';
+    if(n.role!=='수간호사' && RULES.fatigue && RULES.fatigue.enabled){
+      var fg=fatigueScore(n.id);
+      var fgColor = fg.level==='low'?'#2EA875':(fg.level==='mid'?'#E2941C':'#E0506E');
+      var fgLabel = fg.level==='low'?'양호':(fg.level==='mid'?'보통':'과로');
+      var fgPct = Math.min(100, Math.round(fg.total/ (RULES.fatigue.midMax*1.4) *100));
+      var fgTip='피로도 '+fg.total+'점 ('+fgLabel+') — 야간 '+fg.nights+'회·최대연속 '+fg.maxStreak+'일·역회전 '+fg.reverses+'회·단일off '+fg.singleOffs+'회 | FRI 방법론 기반';
+      fatPill='<span class="fatbar" title="'+fgTip+'" onclick="event.stopPropagation();showFatigue('+n.id+')">'
+        +'<span class="fatbar-track"><span class="fatbar-fill" style="width:'+fgPct+'%;background:'+fgColor+'"></span></span>'
+        +'<span class="fatbar-num" style="color:'+fgColor+'">'+fg.total+'</span></span>';
+    }
     // 생일 체크 (이번 달)
     var isBday=false;
     if(n.birthday){var bp=n.birthday.split('-');isBday=parseInt(bp[1])===cm+1;}
@@ -4289,6 +4427,7 @@ function render(){
     tb+='<tr><td class="ncell" onclick="onNameClick('+n.id+')">'
       +'<div class="nl1">'+photoHTML(n,'sm')+'<span class="nn">'+n.name+bdayIcon+'</span><span class="nbadge" style="background:'+RBG[n.role]+';color:'+RCOL[n.role]+'">'+n.role+'</span>'+dutyAttrIcons(n)+'</div>'
       +'<div class="nl2">'+workPill+offPill+vacPill+'</div>'
+      +(fatPill?'<div class="nl3">'+fatPill+'</div>':'')
       +'</td>';
     for(var d=1;d<=nd;d++){
       var w2=dow(cy,cm,d);var h2=isH(cy,cm,d);
@@ -4656,6 +4795,32 @@ function onNameClick(nid){
   setTimeout(function(){var el=document.getElementById('nc-'+nid);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
 }
 
+// v3.15: 피로도 상세 (간호사 행 막대 클릭 → stat 모달 재사용)
+function showFatigue(nid){
+  var n=getNurse(nid); if(!n) return;
+  var fg=fatigueScore(nid);
+  var F=RULES.fatigue;
+  var lvLabel=fg.level==='low'?'양호':(fg.level==='mid'?'보통':'과로');
+  var lvColor=fg.level==='low'?'#2EA875':(fg.level==='mid'?'#E2941C':'#E0506E');
+  document.getElementById('statTitle').textContent=n.name+' 피로도 상세';
+  function bar(label, val, max, color){
+    var pct=max>0?Math.min(100,Math.round(val/max*100)):0;
+    return '<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>'+label+'</span><span style="font-weight:700;color:'+color+'">'+val+'점</span></div>'
+      +'<div style="height:7px;border-radius:4px;background:var(--bg3);overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:4px"></div></div></div>';
+  }
+  var total=fg.total||1;
+  var html='<div style="padding:4px 2px">'
+    +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px"><span style="font-size:28px;font-weight:800;color:'+lvColor+'">'+fg.total+'</span><span style="font-size:13px;font-weight:700;color:'+lvColor+'">'+lvLabel+'</span><span style="font-size:10px;color:var(--text3);margin-left:auto">FRI 방법론 기반 평가</span></div>'
+    +bar('① 근무 타이밍 (야간 '+fg.nights+'회)', fg.timing, total, '#7C5FD3')
+    +bar('② 누적 (최대연속 '+fg.maxStreak+'일·단일off '+fg.singleOffs+'회)', fg.cumulative, total, '#E2941C')
+    +bar('③ 회전 방향 (역회전 '+fg.reverses+'회)', fg.rotation, total, '#E0506E')
+    +'<div style="margin-top:12px;padding:8px 10px;background:var(--bg2);border-radius:8px;font-size:10px;line-height:1.6;color:var(--text2)">'
+    +'영국 HSE <b>Fatigue Risk Index</b> 방법론(근무 타이밍·누적·회전 방향 3요소)을 근무표 데이터에 맞게 단순화한 지표입니다. 가중치는 규칙설정에서 현장에 맞게 조정할 수 있습니다. 자동배치 알고리듬에는 영향을 주지 않는 순수 평가 지표입니다.'
+    +'</div></div>';
+  document.getElementById('statList').innerHTML=html;
+  document.getElementById('statOv').classList.add('open');
+}
+
 // ── v3.11: 드래그로 여러 날 연속 선택 ─────────────────────────────────────
 // 같은 간호사 행에서 mousedown→drag→mouseup 구간에 선택 시프트 일괄 배정.
 var _dragSel = null; // {nid, startD, lastD, moved}
@@ -4903,10 +5068,21 @@ function toggleKbEnabled(){
 function toggleKbHelp(e){
   if(e) e.stopPropagation();
   var pop=document.getElementById('kbHelpPop');
+  var chip=document.getElementById('kbChip');
   if(!pop) return;
-  var show = pop.style.display==='none';
-  pop.style.display = show?'block':'none';
-  if(show){ var cb=document.getElementById('kbPopToggle'); if(cb) cb.checked=kbEnabled; }
+  var show = pop.style.display==='none' || pop.style.display==='';
+  if(show){
+    // fixed 팝오버를 칩 기준으로 배치 (시프트바 overflow에 안 잘리게)
+    var r=chip.getBoundingClientRect();
+    var popW=280;
+    var left=Math.max(8, Math.min(r.right-popW, window.innerWidth-popW-8));
+    pop.style.left=left+'px';
+    pop.style.top=(r.bottom+6)+'px';
+    pop.style.display='block';
+    var cb=document.getElementById('kbPopToggle'); if(cb) cb.checked=kbEnabled;
+  } else {
+    pop.style.display='none';
+  }
 }
 function closeKbHelp(){ var p=document.getElementById('kbHelpPop'); if(p) p.style.display='none'; }
 function syncKbChip(){
@@ -5539,6 +5715,32 @@ function renderAttrUI(n){
       +'</div>';
   }
 
+  // v3.15: 반복 근무 패턴 UI (수간호사 제외)
+  var patternRow='';
+  if(n.role !== '수간호사'){
+    var rp = a.repeatPattern || {seq:[], anchor:1, enabled:false};
+    var seqStr = (rp.seq && rp.seq.length) ? rp.seq.join('') : '';
+    var on = !!(rp.enabled && rp.seq && rp.seq.length);
+    patternRow = '<div style="margin-top:7px;padding:7px 9px;background:var(--bg2);border-radius:8px">'
+      +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      +'<span style="font-size:10px;color:var(--text3);margin-right:2px">🔁 반복 패턴:</span>'
+      +'<input type="text" value="'+seqStr+'" placeholder="예: NNNOO" maxlength="31" '
+      +'onclick="event.stopPropagation()" '
+      +'onchange="event.stopPropagation();setRepeatPattern('+n.id+',this.value)" '
+      +'style="width:110px;padding:3px 6px;border:0.5px solid var(--bd2);border-radius:6px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:var(--bg);color:var(--text);font-family:inherit">'
+      +'<span style="font-size:10px;color:var(--text3)">시작일</span>'
+      +'<input type="number" min="1" max="31" value="'+(rp.anchor||1)+'" '
+      +'onclick="event.stopPropagation()" '
+      +'onchange="event.stopPropagation();setRepeatAnchor('+n.id+',this.value)" '
+      +'style="width:48px;padding:3px 6px;border:0.5px solid var(--bd2);border-radius:6px;font-size:11px;background:var(--bg);color:var(--text);font-family:inherit">'
+      +(on
+        ? '<span class="attr-chip" onclick="event.stopPropagation();setRepeatPattern('+n.id+',&quot;&quot;)" style="display:inline-flex;padding:3px 9px;border-radius:12px;font-size:10px;cursor:pointer;background:var(--bg);color:var(--text3);border:1px solid var(--bd2)">해제</span>'
+        : '')
+      +'</div>'
+      +'<div style="font-size:9.5px;color:var(--text3);margin-top:4px">D/E/N/O로 입력(예: NNNOO = 야간3·오프2 반복). 자동배치 시 시작일부터 순환 적용 · 연차/원티드는 보존</div>'
+      +'</div>';
+  }
+
   return '<div class="efr full" style="margin-bottom:4px">'
     +'<label>특수 속성 <span style="color:var(--text3);font-weight:400">(자동배치 시 반영)</span></label>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">'
@@ -5555,6 +5757,7 @@ function renderAttrUI(n){
     +'</div>'
     +preceptorRow
     +offOverrideRow
+    +patternRow
     +'</div>';
 }
 
@@ -5569,6 +5772,35 @@ function setTargetOff(nurseId, val){
     var num = parseInt(val);
     n.attributes.targetOffOverride = isNaN(num) ? null : Math.max(0, Math.min(31, num));
   }
+  saveLocal();
+  renderCards();
+  render();
+}
+
+// v3.15: 반복 근무 패턴 설정 — 문자열(예 "NNNOO")을 파싱해 seq 배열로 저장
+function setRepeatPattern(nurseId, str){
+  var n = getNurse(nurseId);
+  if(!n) return;
+  if(!n.attributes) n.attributes = {};
+  var clean = (str||'').toUpperCase().replace(/[^DENOVB-]/g,'');  // 허용 문자만
+  if(!clean){
+    n.attributes.repeatPattern = null;   // 해제
+  } else {
+    var seq = clean.split('');
+    var prev = n.attributes.repeatPattern || {};
+    n.attributes.repeatPattern = {seq:seq, anchor:prev.anchor||1, enabled:true};
+  }
+  saveLocal();
+  renderCards();
+  render();
+}
+function setRepeatAnchor(nurseId, val){
+  var n = getNurse(nurseId);
+  if(!n || !n.attributes) return;
+  var rp = n.attributes.repeatPattern;
+  if(!rp) return;   // 패턴 없으면 anchor 무의미
+  var num = parseInt(val);
+  rp.anchor = isNaN(num) ? 1 : Math.max(1, Math.min(31, num));
   saveLocal();
   renderCards();
   render();
@@ -5956,6 +6188,29 @@ function renderRulesList(){
     +row('참조할 이전 달 수',numInput('plLookback',R.patternLearning.lookbackMonths,1,3),'개월')
   );
 
+  // 10. 피로도 점수 가중치 (맨 아래 — 평가 전용, 메인 알고리듬 무관)
+  var FG=R.fatigue;
+  html+=section('피로도 점수 (FRI 방법론)','🔋',
+    '<div style="font-size:10px;color:#3A5A8A;margin-bottom:8px;padding:6px 8px;background:#EAF1FA;border-radius:6px">'
+    +'영국 HSE <b>Fatigue Risk Index</b> 방법론 기반 평가 지표입니다. <b>자동배치 알고리듬에는 전혀 영향을 주지 않으며</b>, 근무표를 평가해 간호사별 피로도만 표시합니다. 가중치는 현장 상황에 맞게 조정하세요.</div>'
+    +row('피로도 표시',chkInput('fgEnabled',FG.enabled,'ON — 간호사 행에 피로도 막대 표시'),'')
+    +'<div style="font-size:10px;font-weight:700;color:var(--text2);margin:10px 0 4px">① 근무 타이밍 (1회당, 일주기 교란)</div>'
+    +row('주간 D',numInput('fgWDay',FG.wDay,0,30),'점 / 회')
+    +row('저녁 E',numInput('fgWEve',FG.wEve,0,30),'점 / 회')
+    +row('야간 N',numInput('fgWNight',FG.wNight,0,30),'점 / 회 (기준값)')
+    +'<div style="font-size:10px;font-weight:700;color:var(--text2);margin:10px 0 4px">② 누적 (연속근무·회복부족)</div>'
+    +row('연속근무 가산 시작',numInput('fgConsecFrom',FG.consecFrom,2,10),'일째부터')
+    +row('연속근무 1일당 가산',numInput('fgConsecStep',FG.consecStep,0,10),'점')
+    +row('단일 off 페널티',numInput('fgSingleOff',FG.singleOffPenalty,0,20),'점 (근무-off-근무)')
+    +row('야간 2연속',numInput('fgNS2',FG.nightStreak2,0,30),'점 추가')
+    +row('야간 3연속+',numInput('fgNS3',FG.nightStreak3,0,40),'점 추가')
+    +'<div style="font-size:10px;font-weight:700;color:var(--text2);margin:10px 0 4px">③ 회전 방향</div>'
+    +row('역회전 페널티',numInput('fgReverse',FG.reverseRotation,0,30),'점 / 회 (N→D 등)')
+    +'<div style="font-size:10px;font-weight:700;color:var(--text2);margin:10px 0 4px">색 구간 (월 합산)</div>'
+    +row('양호 상한',numInput('fgLowMax',FG.lowMax,10,200),'점 이하 = 초록')
+    +row('보통 상한',numInput('fgMidMax',FG.midMax,20,300),'점 이하 = 주황, 초과 = 빨강')
+  );
+
   document.getElementById('rulesList').innerHTML=html;
 }
 
@@ -6046,6 +6301,17 @@ function saveRules(){
   if(!RULES._cfg.wantedLimits) RULES._cfg.wantedLimits = {};
   RULES._cfg.wantedLimits.perMonthTotal = gi('wlTotal');
   RULES._cfg.wantedLimits.perNurseMonth = gi('wlPerNurse');
+
+  // v3.15: 피로도 점수 가중치 (평가 전용)
+  if(!RULES._cfg.fatigue) RULES._cfg.fatigue = {};
+  var FGc=RULES._cfg.fatigue;
+  FGc.enabled=gb('fgEnabled');
+  FGc.wDay=gn('fgWDay'); FGc.wEve=gn('fgWEve'); FGc.wNight=gn('fgWNight');
+  FGc.consecFrom=gi('fgConsecFrom'); FGc.consecStep=gn('fgConsecStep');
+  FGc.singleOffPenalty=gn('fgSingleOff');
+  FGc.nightStreak2=gn('fgNS2'); FGc.nightStreak3=gn('fgNS3');
+  FGc.reverseRotation=gn('fgReverse');
+  FGc.lowMax=gi('fgLowMax'); FGc.midMax=gi('fgMidMax');
 
   RULES.save(); // RuleEngine.save()로 localStorage 저장
   closeOv('rulesOv');
