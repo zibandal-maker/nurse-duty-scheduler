@@ -27,6 +27,7 @@
   --text:#1a1a18;--text2:#5a5a56;--text3:#9a9a94;
   --bd:rgba(0,0,0,0.09);--bd2:rgba(0,0,0,0.16);
   --grid:#e8e8e6;--grid2:#d6d6d2;  /* v3.16.13: 캘린더 격자선 — 불투명(반투명선이 sticky tfoot 뒤로 비치던 문제 해결) */
+  --ncw:150px;  /* v3.16.18: 이름칸 폭 — 명단 콘텐츠(이름·직급·속성 아이콘 수)에 따라 render에서 동적 산정 */
   --r:8px;--rl:12px;
   --blue:#1E6DBF;--green:#1A8C62;--purple:#5B44C8;--gray:#686864;--orange:#C0781A;
   --today:#378ADD;
@@ -108,7 +109,7 @@ table{border-collapse:collapse;table-layout:fixed;width:auto;}
    스크롤 컨테이너를 못 잡아 풀리는 버그가 있다(125% 배율에서 재현됨). thead로 옮겨 확실히 고정. */
 thead#tHead{position:sticky;top:0;z-index:10;}
 thead th{font-size:10px;font-weight:500;color:var(--text2);text-align:center;padding:2px 1px 3px;border-bottom:0.5px solid var(--bd2);background:var(--bg);overflow:hidden;box-shadow:0 1px 0 var(--bd2);}
-thead th.nc{text-align:left;padding-left:8px;width:150px;min-width:150px;font-size:11px;position:sticky;left:0;z-index:11;background:var(--bg);}
+thead th.nc{text-align:left;padding-left:8px;width:var(--ncw);min-width:var(--ncw);font-size:11px;position:sticky;left:0;z-index:11;background:var(--bg);}
 thead th.dh{width:30px;min-width:30px;max-width:30px;vertical-align:top;background:var(--bg);}
 
 th.sat{background:#E8EEF4!important;color:#185FA5!important;}
@@ -119,7 +120,7 @@ th.sun{background:#FAE8E8!important;color:#A32D2D!important;}
 tbody tr{height:40px;}
 tbody td{border:0.5px solid var(--grid);vertical-align:middle;padding:0;overflow:hidden;}
 
-tbody td.ncell{width:150px;min-width:150px;padding:3px 6px;background:var(--bg);position:sticky;left:0;z-index:5;border-right:0.5px solid var(--bd2);cursor:pointer;vertical-align:middle;}
+tbody td.ncell{width:var(--ncw);min-width:var(--ncw);padding:3px 6px;background:var(--bg);position:sticky;left:0;z-index:5;border-right:0.5px solid var(--bd2);cursor:pointer;vertical-align:middle;}
 tbody td.ncell:hover{background:var(--bg2);}
 /* v3.15: 피로도 점수 막대 */
 /* v3.15.2: 피로도 = 색점+숫자 (이름줄에 인라인 배치) */
@@ -129,7 +130,8 @@ tbody td.ncell:hover{background:var(--bg2);}
 .fatdot:hover .fatdot-c{box-shadow:0 0 0 2px var(--bg3);}
 
 /* 2-line nurse label */
-.nl1{display:flex;align-items:center;gap:3px;line-height:1;}
+.nl1{display:flex;align-items:center;gap:3px;line-height:1;flex-wrap:nowrap;white-space:nowrap;}
+.nl1 .nn{flex:0 0 auto;}
 .nl2{display:flex;align-items:center;gap:3px;margin-top:3px;line-height:1;flex-wrap:wrap;}
 .ndot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 /* 선호도 UI */
@@ -1491,7 +1493,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.16';
+const APP_VERSION = '3.16.20';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -1785,6 +1787,7 @@ let nurses=[
 ];
 let nextId=9;
 let schedule={};
+let _NCW=150;  // v3.16.18: 이름칸 동적 폭(render에서 산정)
 let customEvents=[];
 let nextEvtId=1;
 // v3.7: 원티드 듀티 — 사전 신청 후 자동배치 시 보존되는 셀
@@ -2974,6 +2977,8 @@ function migrateNurse(n){
   // 이월 잔고
   if(!n.carryOver) n.carryOver={offBalance:0};
   if(typeof n.carryOver.offBalance!=='number') n.carryOver.offBalance=0;
+  // v3.16.19: 저장·import 데이터에 이미 모순 속성이 있으면 로드 시 자동 정리
+  if(typeof normalizeAttributes==='function') normalizeAttributes(n);
   return n;
 }
 
@@ -4420,12 +4425,18 @@ function autoFill(){
       // (C) 간호사 속성 기반
       // 임산부 야간 금지
       if(AR2.pregnantNoNight && attr.pregnant && sh==='N') w*=0.01;
-      // 야간전담은 야간만
-      if(AR2.nightDedicatedNightOnly && attr.nightDedicated && (sh==='D'||sh==='E')) w*=0.01;
+      // 야간전담은 야간만 — D/E 강회피 + N 강우선(안 그러면 N 슬롯을 일반에 뺏기고 OFF로 놀게 됨)
+      if(AR2.nightDedicatedNightOnly && attr.nightDedicated){
+        if(sh==='D'||sh==='E') w*=0.01;
+        else if(sh==='N') w*=8;   // v3.16.17: N에 강하게 우선 배정 (대안 시프트가 없으므로)
+      }
       // 야간면제자
       if(AR2.exemptNoNight && attr.nightExempt && sh==='N') w*=0.01;
-      // 고정근무자: 다른 시프트면 회피
-      if(attr.fixedShift && ['D','E','N'].includes(attr.fixedShift) && sh!==attr.fixedShift) w*=0.05;
+      // 고정근무자: 자기 시프트 강우선, 다른 시프트 강회피 (대안 없어 OFF로 놀지 않게)
+      if(attr.fixedShift && ['D','E','N'].includes(attr.fixedShift)){
+        if(sh!==attr.fixedShift) w*=0.05;
+        else w*=6;   // v3.16.17: 자기 고정 시프트에 강우선
+      }
       // 임산부 동시 배치 회피: 같은 시프트에 이미 임산부가 있으면 추가 배치 안 함
       if(AR2.pregnantNoSameShift && attr.pregnant){
         var otherPregOnSame = nurses.some(function(o){
@@ -4586,6 +4597,34 @@ function autoFill(){
         var lastSr=sr.find(function(x){return asgn[x.id]===sh;});
         var pn=wpick(fPl.filter(function(x){return !asgn[x.id];}),sh,lastSr||null);
         if(pn)asgn[pn.id]=sh;
+      }
+    });
+
+    // v3.16.17: min 충원 후 max까지 추가 배치 — 잉여 인원을 무조건 OFF로 버리지 않고,
+    //   off 목표에 도달/근접한 사람을 우선 근무에 넣어 평간호사 OFF 과다·양극화를 완화.
+    //   (off가 아직 부족한 사람은 능동제약 가중치가 알아서 낮춰 OFF로 남김.)
+    ['N','E','D'].forEach(function(sh){              // N부터(가장 빡빡) 여유 채움
+      var isWknd2 = isWH(cy,cm,d);
+      var need2 = R.staffingFor(sh, isWknd2);
+      var maxCap = (need2 && typeof need2.max==='number') ? need2.max : 99;
+      var cur = workers.filter(function(x){return asgn[x.id]===sh;}).length;
+      var room = Math.max(0, maxCap - cur);
+      for(var k=0;k<room;k++){
+        // 아직 미배정 + off 목표를 이미 채운(또는 초과한) 사람만 후보 → 근무 더 시켜도 OK
+        var pool = workers.filter(function(x){
+          if(asgn[x.id] || forced[x.id] || isFixed(x.id,d)) return false;
+          // v3.16.17: 속성 제약자는 max 채우기 대상에서 제외 (금지 시프트로 끌려가지 않게).
+          //   야간전담→N만(한도 차면 OFF), 야간면제→N금지, 임산부→N금지, 고정→자기 시프트만.
+          var xa = x.attributes || {};
+          if(sh!=='N' && xa.nightDedicated) return false;        // 야간전담은 D/E 채우기 제외
+          if(sh==='N' && (xa.nightExempt || xa.pregnant)) return false;  // N 금지자 제외
+          if(xa.fixedShift && xa.fixedShift!==sh) return false;  // 고정근무자는 자기 시프트만
+          var got = offSoFar[x.id]||0, tgt = offTarget[x.id];
+          return (tgt===undefined) ? false : (got >= tgt - 1);  // 목표 -1일 이내면 근무 가능
+        });
+        if(!pool.length) break;
+        var add = wpick(pool, sh, sr.find(function(x){return asgn[x.id]===sh;})||null);
+        if(add) asgn[add.id]=sh; else break;
       }
     });
 
@@ -4885,6 +4924,23 @@ function checkWantedLimits(focusNid){
 
 function render(){
   var nd=ndays(cy,cm);
+  // v3.16.18: 이름칸 폭을 명단 콘텐츠에 맞춰 동적 산정 → 이름·직급·속성이 한 줄에 깔끔히.
+  //   기준: 사진(20) + 최장 이름 글자수 + 직급배지 + 속성아이콘 최대수×14 + 피로도점 + 여백.
+  (function(){
+    var nsAll = nurses;
+    var maxNameLen = 2, maxIcons = 0, hasFat = (RULES.fatigue && RULES.fatigue.enabled);
+    nsAll.forEach(function(n){
+      var nm = (n.name||'').length; if(nm>maxNameLen) maxNameLen=nm;
+      var a = n.attributes||{}, ic=0;
+      if(a.pregnant)ic++; if(a.nightDedicated)ic++; if(a.nightExempt)ic++;
+      if(ic>maxIcons) maxIcons=ic;
+    });
+    // 사진28 + 이름(글자11px) + 직급배지(약34) + 아이콘(개당14) + 피로도(약22) + 좌우여백16
+    var w = 28 + maxNameLen*12 + 34 + maxIcons*14 + (hasFat?22:0) + 16;
+    w = Math.max(132, Math.min(210, w));   // 하한 132 ~ 상한 210
+    document.documentElement.style.setProperty('--ncw', w+'px');
+    _NCW = w;
+  })();
   var _t=new Date();var _isCM=_t.getFullYear()===cy&&_t.getMonth()===cm;var _td=_t.getDate();
   document.getElementById('mLabel').textContent=cy+'년 '+MKO[cm];
 
@@ -4911,7 +4967,7 @@ function render(){
   _pvList.forEach(function(vi){ (prefWarn[vi.nid+'-'+vi.d]=prefWarn[vi.nid+'-'+vi.d]||[]).push(vi); });
 
   // colgroup for fixed widths
-  var cg='<colgroup><col style="width:150px;min-width:150px">';
+  var cg='<colgroup><col style="width:'+_NCW+'px;min-width:'+_NCW+'px">';
   for(var d=1;d<=nd;d++) cg+='<col style="width:30px;min-width:30px;max-width:30px">';
   cg+='</colgroup>';
 
@@ -6150,6 +6206,13 @@ function renderPrefUI(n) {
     var val = p.shift[sh]||0;
     var on = val!==0;
     var c = SHC[sh];
+    var dis = (val===1) ? '' : attrConflict(n, 'pref', sh);   // 이미 선호중이면 정규화가 처리, 그 외 모순이면 비활성
+    if(dis){
+      return '<span title="'+dis+'" '
+        +'style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:11px;font-weight:800;cursor:not-allowed;user-select:none;'
+        +'background:var(--bg2);color:var(--text3);border:1.5px dashed var(--bd2);opacity:.35">'
+        +sh+'</span>';
+    }
     // 선호=색채움+👍, 기피=색테두리+✕(흰바탕), 중립=흐림
     var style, mark='';
     if(val===1){ style='background:'+c+';color:#fff;border:1.5px solid '+c+';box-shadow:0 1px 3px rgba(0,0,0,.18)'; mark='<span style="position:absolute;top:-4px;right:-4px;font-size:9px">👍</span>'; }
@@ -6192,9 +6255,16 @@ function renderAttrUI(n){
   var a = n.attributes;
   function chip(key, label, color, title){
     var on = !!a[key];
+    var dis = on ? '' : attrConflict(n, 'attr', key);   // 켜진 건 끌 수 있게(비활성 안 함)
     var bg  = on ? color : 'var(--bg)';
     var col = on ? '#fff' : 'var(--text2)';
     var bd  = on ? color : 'var(--bd2)';
+    if(dis){
+      return '<span class="attr-chip" title="'+dis+'" '
+        +'style="display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:600;cursor:not-allowed;user-select:none;'
+        +'background:var(--bg2);color:var(--text3);border:1px dashed var(--bd2);opacity:.45">'
+        +label+'</span>';
+    }
     return '<span class="attr-chip" title="'+title+'" '
       +'onclick="event.stopPropagation();toggleAttr('+n.id+',&quot;'+key+'&quot;)" '
       +'style="display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:600;cursor:pointer;user-select:none;'
@@ -6206,6 +6276,13 @@ function renderAttrUI(n){
     var on = a.fixedShift === sh;
     var c = sh==='D' ? '#2EA875' : sh==='E' ? '#E8607E' : '#7C5FD3';
     var lbl = sh==='D'?'Day':sh==='E'?'Eve':'Night';
+    var dis = on ? '' : attrConflict(n, 'fixed', sh);
+    if(dis){
+      return '<span class="fix-badge" title="'+dis+'" '
+        +'style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:11px;font-weight:800;cursor:not-allowed;user-select:none;'
+        +'background:var(--bg2);color:var(--text3);border:1.5px dashed var(--bd2);opacity:.35">'
+        +sh+'</span>';
+    }
     return '<span class="fix-badge" title="'+lbl+' 고정 — 이 시프트만 배정" '
       +'onclick="event.stopPropagation();setFixedShift('+n.id+',&quot;'+sh+'&quot;)" '
       +'style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:11px;font-weight:800;cursor:pointer;user-select:none;transition:transform .08s;'
@@ -6390,33 +6467,114 @@ function togglePreceptee(mentorId, prccpteeId){
   saveLocal(); render(); renderCards(); setTimeout(initMemoHeights, 30);
 }
 
+// v3.16.20: 현재 속성 상태에서 특정 옵션이 "모순(비활성)"인지 판정 — UI 비활성 표시용.
+//   반환: '' (활성) | '사유 문구' (비활성). normalizeAttributes의 규칙과 1:1 대응.
+function attrConflict(n, kind, val){
+  var a = (n && n.attributes) || {};
+  // kind='attr'  val='pregnant'|'nightDedicated'|'nightExempt'
+  // kind='fixed' val='D'|'E'|'N'
+  // kind='pref'  val='D'|'E'|'N'  (선호=1 시도 기준)
+  if(kind==='attr'){
+    if(val==='pregnant'    && !a.pregnant    && a.nightDedicated) return '야간전담과 동시 설정 불가';
+    if(val==='nightExempt' && !a.nightExempt && a.nightDedicated) return '야간전담과 동시 설정 불가';
+    // 야간전담은 임산부/면제를 끄므로(켤 때 우선) 비활성 안 함 — 켜면 자동 정리
+    return '';
+  }
+  if(kind==='fixed'){
+    if(val==='N' && (a.pregnant||a.nightExempt)) return (a.pregnant?'임산부':'야간면제')+'는 야간 고정 불가';
+    if((val==='D'||val==='E') && a.nightDedicated) return '야간전담은 주간/이브닝 고정 불가';
+    return '';
+  }
+  if(kind==='pref'){
+    if(val==='N' && (a.pregnant||a.nightExempt)) return (a.pregnant?'임산부':'야간면제')+'는 야간 선호 불가';
+    if((val==='D'||val==='E') && a.nightDedicated) return '야간전담은 주간/이브닝 선호 불가';
+    return '';
+  }
+  return '';
+}
+
 function toggleAttr(nid, key){
   var n = getNurse(nid);
   if(!n||!n.attributes) return;
   n.attributes[key] = !n.attributes[key];
-  // 상호 배제: 임산부면 야간전담 해제, 야간전담이면 야간면제 해제 등
-  if(key==='pregnant' && n.attributes.pregnant) n.attributes.nightDedicated = false;
-  if(key==='nightDedicated' && n.attributes.nightDedicated){
-    n.attributes.pregnant = false;
-    n.attributes.nightExempt = false;
-    n.attributes.fixedShift = 'N';
-  }
-  if(key==='nightExempt' && n.attributes.nightExempt){
-    n.attributes.nightDedicated = false;
-  }
+  normalizeAttributes(n, key);   // v3.16.19: 모순 속성 일괄 정리(단일 진실원)
   saveLocal(); render(); renderCards(); setTimeout(initMemoHeights,30);
+}
+
+// v3.16.19: 상호 배제 속성·선호 정규화 — 한 곳에서 모든 모순을 해소.
+//   changed = 방금 사용자가 바꾼 항목('pregnant'|'nightDedicated'|'nightExempt'|'fixedShift'|'pref').
+//   그 항목을 "우선 존중"하고 충돌하는 다른 항목을 자동 해제한다.
+// 모순 규칙:
+//   · 임산부 / 야간면제 = 야간 금지  → 야간전담·고정N·N선호 불가
+//   · 야간전담 = 야간만               → 임산부·야간면제·고정D/E·D선호/E선호 불가, 고정N 강제
+//   · 임산부 ↔ 야간전담, 야간면제 ↔ 야간전담 = 동시 불가
+function normalizeAttributes(n, changed){
+  if(!n || !n.attributes) return;
+  var a = n.attributes;
+  if(!n.prefs) n.prefs = {shift:{D:0,E:0,N:0},avoidWith:[],preferWith:[]};
+  if(!n.prefs.shift) n.prefs.shift = {D:0,E:0,N:0};
+  var pr = n.prefs.shift;
+
+  function clearNight(){            // 야간 금지자 처리 (임산부·면제)
+    a.nightDedicated = false;
+    if(a.fixedShift==='N') a.fixedShift = null;
+    if(pr.N===1) pr.N = 0;         // 나이트 선호 → 중립
+  }
+  function makeNightOnly(){         // 야간전담 처리
+    a.pregnant = false;
+    a.nightExempt = false;
+    a.fixedShift = 'N';            // 야간만이니 고정도 N
+    if(pr.D===1) pr.D = 0;         // D/E 선호 → 중립
+    if(pr.E===1) pr.E = 0;
+  }
+
+  // 방금 바꾼 항목을 우선 존중
+  if(changed==='nightDedicated' && a.nightDedicated){ makeNightOnly(); return; }
+  if(changed==='pregnant' && a.pregnant){ clearNight(); return; }
+  if(changed==='nightExempt' && a.nightExempt){ clearNight(); return; }
+
+  // changed가 fixedShift/pref이거나 끄는 동작일 때 — 현재 상태 기준으로 충돌만 정리
+  if(a.nightDedicated){            // 야간전담이 살아있으면 그게 기준
+    a.pregnant = false; a.nightExempt = false;
+    if(a.fixedShift && a.fixedShift!=='N') a.fixedShift = 'N';
+    if(pr.D===1) pr.D=0; if(pr.E===1) pr.E=0;
+  } else if(a.pregnant || a.nightExempt){   // 야간 금지자
+    if(a.fixedShift==='N') a.fixedShift = null;
+    if(pr.N===1) pr.N = 0;
+  }
 }
 
 function setFixedShift(nid, sh){
   var n = getNurse(nid);
   if(!n||!n.attributes) return;
+  var a = n.attributes;
+  // v3.16.19: 모순 차단 — 야간 금지자(임산부·면제)에게 고정 N, 야간전담에게 고정 D/E는 불가
+  if(sh==='N' && (a.pregnant || a.nightExempt)){
+    showToast('⚠️ '+(a.pregnant?'임산부':'야간면제')+'는 야간 고정 근무를 설정할 수 없습니다.', 3000);
+    return;
+  }
+  if((sh==='D'||sh==='E') && a.nightDedicated){
+    showToast('⚠️ 야간전담은 주간/이브닝 고정 근무를 설정할 수 없습니다.', 3000);
+    return;
+  }
   n.attributes.fixedShift = sh; // 'D'/'E'/'N'/null
+  normalizeAttributes(n, 'fixedShift');
   saveLocal(); render(); renderCards(); setTimeout(initMemoHeights,30);
 }
 
 function setPrefShift(nid, sh, val) {
   var n = getNurse(nid);
   if(!n) return;
+  var a = n.attributes || {};
+  // v3.16.19: 모순 차단 — 야간 금지자가 N 선호, 야간전담이 D/E 선호는 불가
+  if(val===1 && sh==='N' && (a.pregnant || a.nightExempt)){
+    showToast('⚠️ '+(a.pregnant?'임산부':'야간면제')+'는 야간을 선호로 설정할 수 없습니다.', 3000);
+    return;
+  }
+  if(val===1 && (sh==='D'||sh==='E') && a.nightDedicated){
+    showToast('⚠️ 야간전담은 주간/이브닝을 선호로 설정할 수 없습니다.', 3000);
+    return;
+  }
   getPrefs(n).shift[sh] = val;
   saveLocal(); renderCards(); setTimeout(initMemoHeights,30);
 }
