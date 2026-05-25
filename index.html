@@ -1493,7 +1493,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.23';
+const APP_VERSION = '3.16.25';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -4313,107 +4313,90 @@ function autoFill(){
   // ════════════════════════════════════════════════════════════════════════
   // 이하: _runGreedyOnce 본체 (기존 단일 그리디 로직을 함수로 분리)
   // ════════════════════════════════════════════════════════════════════════
-  // ── v3.16.23: 백트래킹 엔진 (하이브리드) ─────────────────────────────────
-  //   ① 백트래킹으로 하드 제약 충족까지: 금지패턴(켜진 것)·야간 연속/월 한도·속성(임산부/면제 N금지,
-  //      야간전담 N만, 고정근무)·연속근무 한도·락 보존 + 일별 staffing min.
-  //   ② min 충족 후 잉여 슬롯(max까지)은 off 목표 도달자 우선으로 그리디 후처리(off 균등).
-  //   off 균등을 백트래킹 탐색에 넣으면 분기 폭발(검증: 922만 노드 타임아웃)하므로 후처리로 분리.
-  //   반환: true(성공) | false(타임아웃·해없음 → 그리디 폴백).
+  // ── v3.16.24: 백트래킹/CSP 엔진 (🧪 실험) ────────────────────────────────
+  //   설계: 하드 제약 = 금지패턴(켜진 것)·야간 연속/월 한도·속성(임산부·면제 N금지, 야간전담 N만,
+  //         고정근무)·연속근무 한도·락 → 이것만 절대 위반 안 함(특히 패턴 0 지향).
+  //   소프트 = 선임 정원·신규 보호·staffing min·off균등·프리셉터 → 최대한 맞추되 인력 부족 시 진행(경고).
+  //   하루 단위 순차 채움(선임 우선 → 신규보호 → min → off균등 후처리) + 하드 제약 가지치기.
+  //   폭발/멈춤 없음(실측 ~6ms). 한계: 패턴은 0이나 소프트 제약 동시최적화는 그리디만 못해
+  //   총 경고는 그리디보다 많을 수 있음(특히 staffing 분산·프리셉터). 그래서 '실험' 표시.
+  //   반환: true (항상 성공 — 멈추지 않음).
   function _runBacktrack(nd, R, lockedBackup){
     var ids = nurses.map(function(n){return n.id;});
-    var attrOf={}; nurses.forEach(function(n){attrOf[n.id]=n.attributes||{};});
+    var attrOf={},roleOf={},isSr={},isNew={};
+    nurses.forEach(function(n){attrOf[n.id]=n.attributes||{};roleOf[n.id]=n.role;
+      isSr[n.id]=(n.role==='주임'||n.role==='차지'); isNew[n.id]=(n.role==='신규간호사');});
+    var head=nurses.find(function(n){return n.role==='수간호사';});
     var FP=R.forbiddenPatterns, NR=R.nightRules;
-    var grid={}, nights={}, consecN={}, workStreak={}, offSoFar={};
+    var grid={},nights={},consecN={},workStreak={},offSoFar={};
     ids.forEach(function(id){grid[id]={};nights[id]=0;consecN[id]=0;workStreak[id]=0;offSoFar[id]=0;});
     var tgtOff={}; nurses.forEach(function(n){tgtOff[n.id]=(n.role==='수간호사')?99:offQ(n.id);});
     // 락/보존 셀 선반영
     ids.forEach(function(id){for(var d=1;d<=nd;d++){var k=key(id,d); if(lockedBackup[k]!==undefined) grid[id][d]=lockedBackup[k];}});
-    function forbidPat(id,d,c){
-      var p1=grid[id][d-1]||'', p2=grid[id][d-2]||'';
-      if(FP.ND&&p1==='N'&&c==='D')return true;
-      if(FP.NE&&p1==='N'&&c==='E')return true;
-      if(FP.ED&&p1==='E'&&c==='D')return true;
-      if(p1===''||p1==='O'){
-        if(FP.NOD&&p2==='N'&&c==='D')return true;
-        if(FP.EOD&&p2==='E'&&c==='D')return true;
-        if(FP.NON&&p2==='N'&&c==='N')return true;
-        if(FP.NOE&&p2==='N'&&c==='E')return true;
-      }
-      if(FP.NNNN&&c==='N'&&p1==='N'&&p2==='N'&&(grid[id][d-3]||'')==='N')return true;
-      return false;
-    }
-    function canWork(id,d,sh){
-      if(grid[id][d]) return grid[id][d]===sh;   // 락/보존
-      if(lockedBackup[key(id,d)]!==undefined || isLocked(id,d)) return false;  // 다른 고정 셀(전역 isLocked 사용)
+    // 수간호사 평일 D 고정(락/보존 없을 때만)
+    if(head){var hp=R.headNurse; for(var d=1;d<=nd;d++){ if(grid[head.id][d]===undefined) grid[head.id][d]=isWH(cy,cm,d)?'O':'D'; }}
+    function forbidPat(id,d,c){var p1=grid[id][d-1]||'',p2=grid[id][d-2]||'';
+      if(FP.ND&&p1==='N'&&c==='D')return true; if(FP.NE&&p1==='N'&&c==='E')return true; if(FP.ED&&p1==='E'&&c==='D')return true;
+      if(p1===''||p1==='O'){if(FP.NOD&&p2==='N'&&c==='D')return true;if(FP.EOD&&p2==='E'&&c==='D')return true;
+        if(FP.NON&&p2==='N'&&c==='N')return true;if(FP.NOE&&p2==='N'&&c==='E')return true;}
+      if(FP.NNNN&&c==='N'&&p1==='N'&&p2==='N'&&(grid[id][d-3]||'')==='N')return true; return false;}
+    function canWork(id,d,sh){  // 하드 제약만
+      if(grid[id][d]!==undefined) return grid[id][d]===sh;        // 락/보존/수간호사 고정
+      if(lockedBackup[key(id,d)]!==undefined || isLocked(id,d)) return false;
       var a=attrOf[id];
-      if(sh==='N'){
-        if(a.pregnant||a.nightExempt)return false;
-        if(a.fixedShift&&a.fixedShift!=='N')return false;
-        var nlim=a.nightDedicated?NR.monthlyNightMaxDedicated:NR.monthlyNightMaxRegular;
-        if(nights[id]>=nlim)return false;
-        if(consecN[id]>=NR.consecutiveNightMax)return false;
-      } else {
-        if(a.nightDedicated)return false;
-        if(a.fixedShift&&a.fixedShift!==sh)return false;
-      }
+      if(sh==='N'){ if(a.pregnant||a.nightExempt)return false; if(a.fixedShift&&a.fixedShift!=='N')return false;
+        var nl=a.nightDedicated?NR.monthlyNightMaxDedicated:NR.monthlyNightMaxRegular; if(nights[id]>=nl)return false;
+        if(consecN[id]>=NR.consecutiveNightMax)return false; }
+      else { if(a.nightDedicated)return false; if(a.fixedShift&&a.fixedShift!==sh)return false; }
       if(workStreak[id]>=R.consecutive.maxWorkStreak)return false;
-      if(forbidPat(id,d,sh))return false;
-      return true;
+      if(forbidPat(id,d,sh))return false; return true; }
+    function place(id,d,sh){ grid[id][d]=sh; if(sh==='N'){nights[id]++;consecN[id]++;} workStreak[id]++; }
+    function curCnt(d,sh){ return ids.filter(function(id){return grid[id][d]===sh;}).length; }
+    // off부족(근무필요)순 + 프리셉터 보너스
+    var mentorOf={}; nurses.forEach(function(m){var po=(m.attributes&&m.attributes.preceptorOf)||[];po.forEach(function(nid){mentorOf[nid]=m.id;});});
+    function score(id,d,sh){ var sc=offSoFar[id]-tgtOff[id];
+      if(isNew[id]&&mentorOf[id]&&grid[mentorOf[id]]&&grid[mentorOf[id]][d]===sh)sc-=2;
+      var po=(attrOf[id].preceptorOf)||[]; if(po.some(function(nid){return grid[nid]&&grid[nid][d]===sh;}))sc-=2;
+      return sc; }
+    // min 충원용: off부족(근무필요)만 본다 — 프리셉터 보너스가 정원 배분을 교란하지 않게
+    function scoreMin(id,d,sh){ return offSoFar[id]-tgtOff[id]; }
+    var t0=Date.now();
+    for(var d=1;d<=nd;d++){ var wknd=isWH(cy,cm,d);
+      ['N','E','D'].forEach(function(sh){ var w=R.staffingFor(sh,wknd); if(!w)return; var sn=w.senior||0; var jn=w.junior||0;
+        // 1) 선임 슬롯
+        for(var k=0;k<sn;k++){
+          var pool=ids.filter(function(id){return grid[id][d]===undefined&&isSr[id]&&canWork(id,d,sh);});
+          if(!pool.length)break; pool.sort(function(a,bb){return scoreMin(a,d,sh)-scoreMin(bb,d,sh);}); place(pool[0],d,sh); }
+        // 2) 평간호사(junior) 슬롯 — 평간/신규 중에서 명시적으로 jn명 (선임으로 안 채움 → 평간호사 0/1 방지)
+        var plNow=function(){return ids.filter(function(id){return grid[id][d]===sh&&!isSr[id]&&roleOf[id]!=='수간호사';}).length;};
+        var guardJ=0;
+        while(plNow()<jn && guardJ++<50){
+          var hasSrN=(sh==='N')&&ids.some(function(id){return grid[id][d]==='N'&&isSr[id];});
+          var pool=ids.filter(function(id){return grid[id][d]===undefined&&!isSr[id]&&roleOf[id]!=='수간호사'&&canWork(id,d,sh);});
+          if(sh==='N'&&!hasSrN){var p2=pool.filter(function(id){return !isNew[id];}); if(p2.length)pool=p2;}
+          if(!pool.length)break; pool.sort(function(a,bb){return scoreMin(a,d,sh)-scoreMin(bb,d,sh);}); place(pool[0],d,sh); }
+        // 3) min 나머지 (아무 역할이나)
+        var guard=0;
+        while(curCnt(d,sh)<w.min && guard++<50){
+          var hasSrN=(sh==='N')&&ids.some(function(id){return grid[id][d]==='N'&&isSr[id];});
+          var pool=ids.filter(function(id){return grid[id][d]===undefined&&roleOf[id]!=='수간호사'&&canWork(id,d,sh);});
+          if(sh==='N'&&!hasSrN){var p2=pool.filter(function(id){return !isNew[id];}); if(p2.length)pool=p2;}
+          if(!pool.length)break; pool.sort(function(a,bb){return scoreMin(a,d,sh)-scoreMin(bb,d,sh);}); place(pool[0],d,sh); }
+      });
+      // 3) off균등 후처리 (max까지, 근무 부족자만)
+      ['N','E','D'].forEach(function(sh){ var w=R.staffingFor(sh,wknd); if(!w)return;
+        for(var k=curCnt(d,sh);k<w.max;k++){
+          var pool=ids.filter(function(id){return grid[id][d]===undefined&&roleOf[id]!=='수간호사'&&canWork(id,d,sh)&&offSoFar[id]>=tgtOff[id]-1;});
+          var hasSrN=(sh==='N')&&ids.some(function(id){return grid[id][d]==='N'&&isSr[id];});
+          if(sh==='N'&&!hasSrN)pool=pool.filter(function(id){return !isNew[id];});
+          if(!pool.length)break; pool.sort(function(a,bb){return score(a,d,sh)-score(bb,d,sh);}); place(pool[0],d,sh); }
+      });
+      // 4) 나머지 O
+      ids.forEach(function(id){ if(grid[id][d]===undefined){grid[id][d]='O';offSoFar[id]++;workStreak[id]=0;} if(grid[id][d]!=='N')consecN[id]=0; });
     }
-    var deadline=Date.now()+5000, found=false;   // 5초 한도
-    function isWknd(d){return isWH(cy,cm,d);}
-    function day(d){
-      if(Date.now()>deadline)return 'TIMEOUT';
-      if(d>nd){found=true;return true;}
-      var slots=[];
-      ['N','E','D'].forEach(function(sh){var w=R.staffingFor(sh,isWknd(d));var m=w?w.min:1;for(var k=0;k<m;k++)slots.push(sh);});
-      function fill(si,used){
-        if(Date.now()>deadline)return 'TIMEOUT';
-        if(si>=slots.length){
-          // ② 잉여(max까지) off균등 그리디 후처리 — 백트랙 안 함
-          ['N','E','D'].forEach(function(sh){
-            var w=R.staffingFor(sh,isWknd(d)); if(!w)return;
-            var cur=ids.filter(function(id){return grid[id][d]===sh;}).length;
-            for(var k=cur;k<w.max;k++){
-              var pool=ids.filter(function(id){return used.indexOf(id)<0 && !grid[id][d] && canWork(id,d,sh) && offSoFar[id]>=tgtOff[id]-1;});
-              if(!pool.length)break;
-              pool.sort(function(a,bb){return (offSoFar[bb]-tgtOff[bb])-(offSoFar[a]-tgtOff[a]);});
-              var id=pool[0]; grid[id][d]=sh; used.push(id);
-              if(sh==='N'){nights[id]++;consecN[id]++;}else consecN[id]=0; workStreak[id]++;
-            }
-          });
-          // 나머지 O
-          ids.forEach(function(id){if(used.indexOf(id)<0&&!grid[id][d]){grid[id][d]='O';offSoFar[id]++;workStreak[id]=0;}});
-          var rr=day(d+1); if(rr===true||rr==='TIMEOUT')return rr;
-          // 롤백 (후처리분 + O)
-          ids.forEach(function(id){if(used.indexOf(id)<0 && lockedBackup[key(id,d)]===undefined){
-            if(grid[id][d]==='O')offSoFar[id]--; delete grid[id][d];
-          }});
-          return false;
-        }
-        var sh=slots[si];
-        // 락/보존으로 이미 이 시프트면 자동 충당
-        var lockedHere=ids.filter(function(id){return grid[id][d]===sh && used.indexOf(id)<0 && lockedBackup[key(id,d)]!==undefined;});
-        if(lockedHere.length){var id=lockedHere[0];used.push(id);var rr=fill(si+1,used);if(rr===true||rr==='TIMEOUT')return rr;used.pop();return false;}
-        var cand=ids.filter(function(id){return used.indexOf(id)<0 && !grid[id][d] && canWork(id,d,sh);});
-        cand.sort(function(a,bb){return (offSoFar[bb]-tgtOff[bb])-(offSoFar[a]-tgtOff[a]);}); // 근무필요자 우선
-        for(var i=0;i<cand.length;i++){var id=cand[i];
-          var on=nights[id],oc=consecN[id],ws=workStreak[id];
-          grid[id][d]=sh;used.push(id);
-          if(sh==='N'){nights[id]++;consecN[id]++;}else consecN[id]=0; workStreak[id]++;
-          var rr=fill(si+1,used); if(rr===true||rr==='TIMEOUT')return rr;
-          delete grid[id][d];used.pop();nights[id]=on;consecN[id]=oc;workStreak[id]=ws;
-        }
-        return false;
-      }
-      return fill(0,[]);
-    }
-    var rst=day(1);
-    if(found){
-      ids.forEach(function(id){for(var d=1;d<=nd;d++){ schedule[key(id,d)]=grid[id][d]||'O'; }});
-      return true;
-    }
-    return false;  // 타임아웃/해없음
+    ids.forEach(function(id){for(var d=1;d<=nd;d++){ schedule[key(id,d)]=grid[id][d]||'O'; }});
+    console.log('[autoFill:backtrack] '+(Date.now()-t0)+'ms');
+    return true;
   }
 
   function _runGreedyOnce(STRAT, rng, nd, R, lockedBackup){
@@ -6807,6 +6790,14 @@ function applyLockState(){
 
 
 // ── 근무 규칙 설정 ────────────────────────────────────────────────────────
+// v3.16.25: 엔진 라디오 변경 시 — 규칙설정 UI를 즉시 다시 그려 '하드 강제' 표시를 반영.
+//   (백트래킹 선택 시 하드 토글이 자동 적용됨을 바로 보여주기 위함)
+function onEngineRadioChange(){
+  var r=document.querySelector('input[name="r_engine"]:checked');
+  if(r) RULES.engine=r.value;   // 임시 반영 (확정 저장은 규칙 저장 시)
+  renderRulesList();
+}
+
 function openRules(){
   document.getElementById('rulesWardName').textContent='— '+(RULES.display.wardName||'병동명 미설정');
   renderRulesList();
@@ -7031,21 +7022,30 @@ function renderRulesList(){
     '<div style="font-size:10px;color:#0C447C;margin-bottom:8px;padding:6px 8px;background:#E6F1FB;border-radius:6px">'
     +'자동배치 방식을 선택합니다. 둘 다 락(원티드)·속성·인력 정원을 지킵니다.</div>'
     +'<label style="display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;margin-bottom:5px;'+(_eng==='greedy'?'background:#EAF1FB;border:1px solid #B9D2EE':'border:1px solid var(--bd2)')+'">'
-      +'<input type="radio" name="r_engine" value="greedy"'+(_eng==='greedy'?' checked':'')+' style="margin-top:2px;cursor:pointer">'
+      +'<input type="radio" name="r_engine" value="greedy"'+(_eng==='greedy'?' checked':'')+' onchange="onEngineRadioChange()" style="margin-top:2px;cursor:pointer">'
       +'<div><b style="font-size:12px">그리디 (MultiStart, 기본)</b>'
       +'<div style="font-size:10px;color:var(--text2);margin-top:2px">여러 전략으로 빠르게 시도해 가장 나은 결과 채택. off 균등에 강함. 금지패턴은 회피하되 인력 빠듯하면 일부 남을 수 있음.</div></div></label>'
-    +'<label style="display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;'+(_eng==='backtrack'?'background:#EAF1FB;border:1px solid #B9D2EE':'border:1px solid var(--bd2)')+'">'
-      +'<input type="radio" name="r_engine" value="backtrack"'+(_eng==='backtrack'?' checked':'')+' style="margin-top:2px;cursor:pointer">'
-      +'<div><b style="font-size:12px">백트래킹 (하이브리드)</b>'
-      +'<div style="font-size:10px;color:var(--text2);margin-top:2px">금지패턴·야간한도·속성을 <b>하드 제약</b>으로 박아 위반을 거의 0으로. off 균등은 그리디보다 약할 수 있음. 인력이 극단적으로 빠듯하면 5초 후 그리디로 자동 전환.</div></div></label>'
+    +'<label style="display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;'+(_eng==='backtrack'?'background:#FBF3E0;border:1px solid #E8C97A':'border:1px solid var(--bd2)')+'">'
+      +'<input type="radio" name="r_engine" value="backtrack"'+(_eng==='backtrack'?' checked':'')+' onchange="onEngineRadioChange()" style="margin-top:2px;cursor:pointer">'
+      +'<div><b style="font-size:12px">🧪 백트래킹 (실험)</b>'
+      +'<div style="font-size:10px;color:var(--text2);margin-top:2px">금지패턴·야간한도·속성을 <b>하드 제약</b>으로 박아 <b>패턴 위반을 0</b>으로. 인력 부족 시 선임정원·신규보호 등 일부 권고는 경고로 남김. <b>off 균등은 그리디보다 약함</b>. 패턴 없는 표가 최우선일 때 권장.</div></div></label>'
   , true);
 
   var FP=R.forbiddenPatterns;
   html+=section('🚫 금지 패턴 (한국 표준 듀티 규칙)','🚫',
     '<div style="font-size:10px;color:#0C447C;margin-bottom:8px;padding:6px 8px;background:#E6F1FB;border-radius:6px">'
     +'한국 간호 표준 및 보건의료노조 단체협약에서 금지하는 연속 근무 패턴. 자동배치 시 회피.</div>'
-    +row('⚡ 자동배치에서 강제(하드)',chkInput('fpHard',FP.hardForbid,'켜면 자동배치가 켜진 패턴을 후보에서 제외 → 패턴 위반 대폭 감소. 단 인력이 빠듯하면 인원 미달이 늘 수 있음(미달은 빨간 경고로 표시). 인력 여유 있으면 켜기 권장. 끄면(기본) 가중치로 회피만 함.'),'')
-    +'<div style="font-size:9px;color:var(--text3);margin:2px 0 8px;padding-left:4px">끔=회피 시도(빈칸 방지 우선) · 켬=패턴 거의 제거(인력 여유 필요)</div>'
+    +(_eng==='backtrack'
+       // 백트래킹 선택 시: 하드 강제가 자동 적용됨 — 체크 고정+비활성+안내
+       ? '<div id="fpHardRow" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;background:#FBF3E0;border:1px solid #E8C97A">'
+         +'<input type="checkbox" id="r_fpHard" checked disabled style="width:15px;height:15px">'
+         +'<span style="font-size:13px;font-weight:700;color:var(--text)">⚡ 자동배치에서 강제(하드)</span>'
+         +'<span style="margin-left:auto;font-size:9px;font-weight:700;color:#8A6D1B;background:#F5E4B8;padding:2px 7px;border-radius:10px">🧪 백트래킹이 자동 적용 중</span>'
+         +'</div>'
+         +'<div style="font-size:9px;color:var(--text3);margin:2px 0 8px;padding-left:4px">백트래킹 엔진은 켜진 패턴을 항상 하드 제약으로 처리합니다. (그리디로 바꾸면 이 옵션을 끌 수 있습니다)</div>'
+       : row('⚡ 자동배치에서 강제(하드)',chkInput('fpHard',FP.hardForbid,'켜면 자동배치가 켜진 패턴을 후보에서 제외 → 패턴 위반 대폭 감소. 단 인력이 빠듯하면 인원 미달이 늘 수 있음(미달은 빨간 경고로 표시). 인력 여유 있으면 켜기 권장. 끄면(기본) 가중치로 회피만 함.'),'')
+         +'<div style="font-size:9px;color:var(--text3);margin:2px 0 8px;padding-left:4px">끔=회피 시도(빈칸 방지 우선) · 켬=패턴 거의 제거(인력 여유 필요)</div>'
+      )
     +row('NOD (나오데)',chkInput('fpNOD',FP.NOD,'나이트→오프→데이 — 24시간 만에 재출근, 가장 악명'),'')
     +row('EOD (이오데)',chkInput('fpEOD',FP.EOD,'이브닝→오프→데이 — 휴식 부족'),'')
     +row('ED (이브데이)',chkInput('fpED',FP.ED,'이브닝→데이 — 단협 표준 금지'),'')
