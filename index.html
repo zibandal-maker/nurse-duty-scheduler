@@ -1491,7 +1491,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.15';
+const APP_VERSION = '3.16.16';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -6588,12 +6588,28 @@ function renderRulesList(){
       lines.push('<span style="color:#633806">⚠️ 근무 슬롯이 적어 1인당 off가 약 '+Math.abs(slotDiffPerPerson).toFixed(1)+'일씩 남습니다 (미배치 가능).</span>');
       lines.push('&nbsp;&nbsp;→ 교대 최소인원을 높이거나 off 목표를 조정하세요.');
     }
-    if(maxSrNeed > _seniors.length){
-      lines.push('<span style="color:#791F1F">⚠️ 선임 부족 — 하루 최대 '+maxSrNeed+'명 필요한데 선임 '+_seniors.length+'명뿐.</span>');
-      lines.push('&nbsp;&nbsp;→ 선임 풀가동으로 <b>선임 off 부족·과로</b>, 평간호사 off 초과(양극화).');
-      lines.push('&nbsp;&nbsp;→ 교대당 선임 필수인원을 낮추거나 선임 충원.');
-    } else {
-      lines.push('<span style="color:#27500A">✓ 선임 충분 (하루 최대 '+maxSrNeed+'명 필요 / 보유 '+_seniors.length+'명).</span>');
+    // v3.16.16: 선임 적정 인원 = 하루 최대 필요 선임 × 2.5 (실측 근거).
+    //   기존엔 "1배 미만일 때만 부족"으로 봐, 1.67배에도 선임이 풀가동·과로하는데 "충분"으로 오판했음.
+    //   실측(20명 병동): 1.67배 평균피로 91(과로) → 2.5배 55(정상)로 정상화. 2.5배가 안전선.
+    var SR_RATIO = 2.5;
+    var srRecommend = Math.ceil(maxSrNeed * SR_RATIO);
+    var srRatioNow = maxSrNeed>0 ? (_seniors.length/maxSrNeed) : 0;
+    if(maxSrNeed > 0 && _seniors.length < srRecommend){
+      var sev = srRatioNow < 1.5 ? '#791F1F' : '#633806';   // 1.5배 미만 심각, 그 이상 주의
+      lines.push('<span style="color:'+sev+'">⚠️ 선임 부족 — 하루 최대 '+maxSrNeed+'명 필요, 지속가능 적정은 약 '
+        +srRecommend+'명(2.5배). 현재 '+_seniors.length+'명('+srRatioNow.toFixed(1)+'배).</span>');
+      lines.push('&nbsp;&nbsp;→ 선임이 거의 매일 근무하게 됨 → <b>선임 과로·off 부족</b>, 평간호사는 근무 슬롯이 없어 <b>off 초과(양극화)</b>.');
+      lines.push('&nbsp;&nbsp;→ <b>선임(주임·차지) '+Math.max(0,srRecommend-_seniors.length)+'명 충원 권장</b>'
+        +(_seniors.length>=maxSrNeed?' (또는 교대당 선임 필수인원을 낮춰 부담 분산).':' — 또는 교대당 선임 필수인원 ↓.'));
+    } else if(maxSrNeed > 0){
+      lines.push('<span style="color:#27500A">✓ 선임 적정 (하루 최대 '+maxSrNeed+'명 필요 / 보유 '+_seniors.length+'명 = '+srRatioNow.toFixed(1)+'배, 권장 2.5배 충족).</span>');
+    }
+    // v3.16.16: 평간호사 과다 off 진단 (양극화의 반대편)
+    var _juniors = _workers.filter(function(n){return !isSenior(n);});
+    if(_juniors.length>0 && srRatioNow>0 && srRatioNow<2.5 && _seniors.length>0){
+      // 선임 부족 시 평간호사 off가 목표 초과로 흐름 — 정량 안내
+      lines.push('<span style="color:#633806">⚠️ 위 선임 부족의 결과로, 평간호사 '+_juniors.length+'명이 근무 슬롯을 못 받아 off가 목표('+_avgTgtOff.toFixed(0)+'일)를 초과하기 쉽습니다.</span>');
+      lines.push('&nbsp;&nbsp;→ 교대 <b>최대(max) 인원을 높이면</b> 평간호사가 더 근무에 들어가 off 쏠림이 완화됩니다.');
     }
     var wkdayMin=_daySlot(false,'min'), wkendMin=_daySlot(true,'min');
     if(wkdayMin - wkendMin >= 3){
