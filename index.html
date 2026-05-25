@@ -1493,7 +1493,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.26';
+const APP_VERSION = '3.16.27';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -4328,8 +4328,8 @@ function autoFill(){
       isSr[n.id]=(n.role==='주임'||n.role==='차지'); isNew[n.id]=(n.role==='신규간호사');});
     var head=nurses.find(function(n){return n.role==='수간호사';});
     var FP=R.forbiddenPatterns, NR=R.nightRules;
-    var grid={},nights={},consecN={},workStreak={},offSoFar={},shiftCnt={};
-    ids.forEach(function(id){grid[id]={};nights[id]=0;consecN[id]=0;workStreak[id]=0;offSoFar[id]=0;shiftCnt[id]={D:0,E:0,N:0};});
+    var grid={},nights={},consecN={},workStreak={},offSoFar={},shiftCnt={},workSoFar={};
+    ids.forEach(function(id){grid[id]={};nights[id]=0;consecN[id]=0;workStreak[id]=0;offSoFar[id]=0;shiftCnt[id]={D:0,E:0,N:0};workSoFar[id]=0;});
     var tgtOff={}; nurses.forEach(function(n){tgtOff[n.id]=(n.role==='수간호사')?99:offQ(n.id);});
     // 락/보존 셀 선반영
     ids.forEach(function(id){for(var d=1;d<=nd;d++){var k=key(id,d); if(lockedBackup[k]!==undefined) grid[id][d]=lockedBackup[k];}});
@@ -4350,7 +4350,7 @@ function autoFill(){
       else { if(a.nightDedicated)return false; if(a.fixedShift&&a.fixedShift!==sh)return false; }
       if(workStreak[id]>=R.consecutive.maxWorkStreak)return false;
       if(forbidPat(id,d,sh))return false; return true; }
-    function place(id,d,sh){ grid[id][d]=sh; if(sh==='N'){nights[id]++;consecN[id]++;} workStreak[id]++; if(shiftCnt[id])shiftCnt[id][sh]++; }
+    function place(id,d,sh){ grid[id][d]=sh; if(sh==='N'){nights[id]++;consecN[id]++;} workStreak[id]++; if(shiftCnt[id])shiftCnt[id][sh]++; workSoFar[id]++; }
     function curCnt(d,sh){ return ids.filter(function(id){return grid[id][d]===sh;}).length; }
     // off부족(근무필요)순 + 프리셉터 보너스
     var mentorOf={}; nurses.forEach(function(m){var po=(m.attributes&&m.attributes.preceptorOf)||[];po.forEach(function(nid){mentorOf[nid]=m.id;});});
@@ -4367,11 +4367,19 @@ function autoFill(){
       else if(a.fixedShift===sh){ pen-=8; }
       return pen;
     }
-    function score(id,d,sh){ var sc=(offSoFar[id]-tgtOff[id]) + shiftPenalty(id,sh);
+    // v3.16.27: 근무 페이스 부족분 — 시간 진행(d)에 비례한 기대 근무 대비 뒤처진 사람 우선.
+    //   기존 버그: offSoFar-tgtOff(누적 off)만 봐서 초반엔 모두 0 → 앞쪽 id만 계속 뽑히고
+    //   나머지는 후반까지 OFF로 밀림("전반 2주 OFF, 후반 몰아 근무"). 진행률 대비로 바꿔 매일 골고루 분배.
+    function paceDeficit(id,d){
+      var targetWork = (roleOf[id]==='수간호사') ? 0 : (nd - tgtOff[id]);
+      var expected = targetWork * ((d-1)/nd);
+      return workSoFar[id] - expected;
+    }
+    function score(id,d,sh){ var sc=paceDeficit(id,d) + shiftPenalty(id,sh);
       if(isNew[id]&&mentorOf[id]&&grid[mentorOf[id]]&&grid[mentorOf[id]][d]===sh)sc-=2;
       var po=(attrOf[id].preceptorOf)||[]; if(po.some(function(nid){return grid[nid]&&grid[nid][d]===sh;}))sc-=2;
       return sc; }
-    function scoreMin(id,d,sh){ return (offSoFar[id]-tgtOff[id]) + shiftPenalty(id,sh); }
+    function scoreMin(id,d,sh){ return paceDeficit(id,d) + shiftPenalty(id,sh); }
     var t0=Date.now();
     for(var d=1;d<=nd;d++){ var wknd=isWH(cy,cm,d);
       ['N','E','D'].forEach(function(sh){ var w=R.staffingFor(sh,wknd); if(!w)return; var sn=w.senior||0; var jn=w.junior||0;
@@ -4398,7 +4406,7 @@ function autoFill(){
       // 3) off균등 후처리 (max까지) — 목표 off 근처(여유)인 사람만 추가해 과로 방지.
       ['N','E','D'].forEach(function(sh){ var w=R.staffingFor(sh,wknd); if(!w)return;
         for(var k=curCnt(d,sh);k<w.max;k++){
-          var pool=ids.filter(function(id){return grid[id][d]===undefined&&roleOf[id]!=='수간호사'&&canWork(id,d,sh)&&offSoFar[id]>=tgtOff[id]-1;});
+          var pool=ids.filter(function(id){return grid[id][d]===undefined&&roleOf[id]!=='수간호사'&&canWork(id,d,sh)&&paceDeficit(id,d)<0.5;});
           var hasSrN=(sh==='N')&&ids.some(function(id){return grid[id][d]==='N'&&isSr[id];});
           if(sh==='N'&&!hasSrN)pool=pool.filter(function(id){return !isNew[id];});
           if(!pool.length)break; pool.sort(function(a,bb){return score(a,d,sh)-score(bb,d,sh);}); place(pool[0],d,sh); }
