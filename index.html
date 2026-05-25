@@ -1493,7 +1493,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.28';
+const APP_VERSION = '3.16.29';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -4357,16 +4357,22 @@ function autoFill(){
     // off부족(근무필요)순 + 프리셉터 보너스
     var mentorOf={}; nurses.forEach(function(m){var po=(m.attributes&&m.attributes.preceptorOf)||[];po.forEach(function(nid){mentorOf[nid]=m.id;});});
     // 정렬 점수: 작을수록 우선. off부족(근무필요) + 시프트 편중 페널티(한 시프트 독식 방지) + 프리셉터 보너스
-    function shiftPenalty(id,sh){
+    function shiftPenalty(id,d,sh){
       var c=shiftCnt[id]||{D:0,E:0,N:0};
       var avg=(c.D+c.E+c.N)/3;
       var pen=(c[sh]-avg)*0.8;
       var a=attrOf[id]||{};
-      // 야간전담은 N이 유일 선택 → N 후보일 때 매우 강한 우선(off 폭증 방지). 단 자기 시프트 편중 페널티는
-      // 위에서 이미 더해졌으니, 야간전담의 N 편중 페널티는 상쇄(N만 하는 게 정상).
       if(sh==='N' && a.nightDedicated){ pen=-100; }
-      // 고정근무자: 자기 시프트 우선이되 '독식 방지'를 위해 중간 강도(시프트 편중 페널티는 유지).
       else if(a.fixedShift===sh){ pen-=8; }
+      // v3.16.29: 시프트 연속성(블록 근무) — 어제와 같은 시프트면 보너스(생활리듬 유지 → 피로↓, 잦은 전환 방지).
+      //   잦은 D↔E↔N 전환이 "15일 전후 색 변화"·균형점수 악화의 원인. 블록 근무를 약하게 유도.
+      if(d>1){ var prev=grid[id][d-1];
+        if(prev===sh) pen-=2.5;                 // 같은 시프트 연속 → 보너스
+        else if(prev && prev!=='O' && prev!=='V'){
+          // 다른 근무 시프트로 전환: 정방향(D→E→N)은 약한 페널티, 역방향은 강한 페널티
+          var ord={D:1,E:2,N:3}; if(ord[prev]&&ord[sh]){ pen += (ord[sh]>ord[prev]) ? 0.5 : 2; }
+        }
+      }
       return pen;
     }
     // v3.16.27: 근무 페이스 부족분 — 시간 진행(d)에 비례한 기대 근무 대비 뒤처진 사람 우선.
@@ -4415,11 +4421,11 @@ function autoFill(){
       }
       return s;
     }
-    function score(id,d,sh){ var sc=paceDeficit(id,d) + shiftPenalty(id,sh) + softScore(id,d,sh);
+    function score(id,d,sh){ var sc=paceDeficit(id,d) + shiftPenalty(id,d,sh) + softScore(id,d,sh);
       if(isNew[id]&&mentorOf[id]&&grid[mentorOf[id]]&&grid[mentorOf[id]][d]===sh)sc-=2;
       var po=(attrOf[id].preceptorOf)||[]; if(po.some(function(nid){return grid[nid]&&grid[nid][d]===sh;}))sc-=2;
       return sc; }
-    function scoreMin(id,d,sh){ return paceDeficit(id,d) + shiftPenalty(id,sh) + softScore(id,d,sh); }
+    function scoreMin(id,d,sh){ return paceDeficit(id,d) + shiftPenalty(id,d,sh) + softScore(id,d,sh); }
     var t0=Date.now();
     var SHIFTS=['N','E','D'];
     for(var d=1;d<=nd;d++){ var wknd=isWH(cy,cm,d);
