@@ -26,6 +26,7 @@
   --bg:#fff;--bg2:#f6f6f4;--bg3:#eeede8;
   --text:#1a1a18;--text2:#5a5a56;--text3:#9a9a94;
   --bd:rgba(0,0,0,0.09);--bd2:rgba(0,0,0,0.16);
+  --grid:#e8e8e6;--grid2:#d6d6d2;  /* v3.16.13: 캘린더 격자선 — 불투명(반투명선이 sticky tfoot 뒤로 비치던 문제 해결) */
   --r:8px;--rl:12px;
   --blue:#1E6DBF;--green:#1A8C62;--purple:#5B44C8;--gray:#686864;--orange:#C0781A;
   --today:#378ADD;
@@ -63,10 +64,8 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:13px;
 .tbl-scroll{flex:1 1 auto;overflow:auto;min-height:160px;}
 /* v3.14.7: 통계 행(tfoot)을 본체 스크롤 밖 별도 테이블로 분리 — 세로 스크롤에 안 잘리고 항상 하단 고정.
    가로 스크롤은 JS(syncFootScroll)로 본체와 동기화. 컬럼 너비는 본체와 동일 규칙. */
-.tbl-foot-scroll{flex-shrink:0;overflow-x:hidden;overflow-y:hidden;border-top:1.5px solid var(--bd2);}
-#tblFoot{border-collapse:collapse;table-layout:fixed;width:auto;}
-#tblFoot td{border:0.5px solid var(--bd);text-align:center;font-size:9px;font-weight:700;padding:1px 0;background:var(--bg);width:30px;min-width:30px;max-width:30px;}
-#tblFoot td.dsl{width:150px;min-width:150px;max-width:150px;text-align:right;padding-right:8px;position:sticky;left:0;z-index:1;background:var(--bg);}
+.tbl-foot-scroll{display:none;}  /* 통계행을 본체 table tfoot로 이동(열 자동 정렬) — 구 별도테이블 제거 */
+#tblFoot{display:none;}
 /* v3.15.10: 통계카드+경고는 공간 부족 시 먼저 양보(shrink 허용 + 자체 스크롤). off-info는 고정. */
 .stat-warn-wrap{flex:0 1 auto;min-height:0;overflow-y:auto;}
 .cal-area > .off-info{flex-shrink:0;}
@@ -118,7 +117,7 @@ th.sun{background:#FAE8E8!important;color:#A32D2D!important;}
 
 
 tbody tr{height:40px;}
-tbody td{border:0.5px solid var(--bd);vertical-align:middle;padding:0;overflow:hidden;}
+tbody td{border:0.5px solid var(--grid);vertical-align:middle;padding:0;overflow:hidden;}
 
 tbody td.ncell{width:150px;min-width:150px;padding:3px 6px;background:var(--bg);position:sticky;left:0;z-index:5;border-right:0.5px solid var(--bd2);cursor:pointer;vertical-align:middle;}
 tbody td.ncell:hover{background:var(--bg2);}
@@ -180,11 +179,21 @@ thead th.tdh{background:#D9F3D2!important;color:#2a7a10!important;font-weight:70
 .sb:hover{opacity:.78;transform:scale(1.08);}
 .sb.empty{background:var(--bg3);opacity:.16;cursor:default;box-shadow:none;}
 .sb.empty:hover{opacity:.16;transform:none;}
-/* v3.13: 하단 날짜별 통계 행 (dutymate 스타일) */
-tfoot#tFoot td{text-align:center;font-size:9px;font-weight:700;padding:1px 0;border-top:0.5px solid var(--bd);background:var(--bg);}
-tfoot#tFoot td.dsl{text-align:right;padding-right:8px;font-size:10px;font-weight:700;position:sticky;left:0;z-index:1;background:var(--bg);}
-tfoot#tFoot tr.dsTotal td{border-top:1.5px solid var(--bd2);font-weight:800;}
-tfoot#tFoot td.understaff{color:#C0392B;background:#FBE4E4;}
+/* v3.13: 하단 날짜별 통계 행 (dutymate 스타일) — 본체 table의 tfoot로 통합하여
+   colgroup 폭을 thead/tbody와 공유 → 간호사수·창크기 무관하게 캘린더 셀과 항상 정렬.
+   sticky bottom으로 세로 스크롤 시에도 하단 고정(잘림 방지). */
+/* v3.16.14: 하단 통계행 비침 = sticky tfoot의 셀 사이 서브픽셀 틈으로 아래 tbody의
+   일요일/공휴일 핑크 열 배경이 비친 것(border 색 아님). 각 셀 배경을 box-shadow로
+   좌우 1.5px 확장해 인접 셀과 겹치게 → 틈 0 → 아래 레이어가 절대 안 보임. */
+tfoot#tFoot{position:sticky;bottom:0;z-index:9;background:#fff;}
+tfoot#tFoot tr{background:#fff;}
+tfoot#tFoot td{text-align:center;font-size:9px;font-weight:700;padding:1px 0;background:#fff;border:none;
+  box-shadow:-1.5px 0 0 #fff, 1.5px 0 0 #fff;}            /* 좌우로 흰배경 확장 → 셀 틈 메움 */
+tfoot#tFoot tr:first-child td{box-shadow:-1.5px 0 0 #fff, 1.5px 0 0 #fff, inset 0 1.5px 0 var(--grid2);}  /* 구분선 */
+tfoot#tFoot td.dsl{text-align:right;padding-right:8px;font-size:10px;font-weight:700;position:sticky;left:0;z-index:10;background:#fff;border:none;box-shadow:1.5px 0 0 #fff;}
+tfoot#tFoot tr:first-child td.dsl{box-shadow:1.5px 0 0 #fff, inset 0 1.5px 0 var(--grid2);}
+tfoot#tFoot tr.dsTotal td{box-shadow:-1.5px 0 0 #fff, 1.5px 0 0 #fff, inset 0 1.5px 0 var(--grid2);font-weight:800;}
+tfoot#tFoot td.understaff{color:#C0392B;background:#FBE4E4;box-shadow:-1.5px 0 0 #FBE4E4, 1.5px 0 0 #FBE4E4;}  /* 미달은 분홍 확장 */
 tfoot#tFoot td.dsD{color:#1F8A5E;} tfoot#tFoot td.dsE{color:#C4456A;} tfoot#tFoot td.dsN{color:#6248BD;} tfoot#tFoot td.dsO{color:#8E897E;}
 .fix-badge:hover{transform:scale(1.12);}
 /* v3.15: tbody를 독립 쌓임 맥락으로 격리 — 셀 내부 warn-mark(느낌표)·배지가
@@ -372,7 +381,7 @@ td.drag-preview{outline:2px solid #FF6B00!important;outline-offset:-2px;backgrou
 .emoji{font-size:1.15em;line-height:1;display:inline-block;vertical-align:-0.05em;}
 
 @media print{
-  .topbar,.shiftbar,.side-panel,.stats-row,.off-info,.stat-warn-wrap{display:none!important;}
+  .topbar,.shiftbar,.side-panel,.stats-row,.off-info,.stat-warn-wrap,tfoot#tFoot{display:none!important;}
   body{height:auto;overflow:visible;}
   .body-wrap{overflow:visible;}
   .cal-area{overflow:visible;padding:0;display:block;}
@@ -504,8 +513,7 @@ body.edit-locked .shiftbar #sPalette{opacity:0.35;pointer-events:none;}
         <button onclick="dismissDemoBanner()" style="padding:3px 10px;background:var(--bg);border:0.5px solid #F0C690;border-radius:4px;font-size:10px;color:#791F1F;cursor:pointer;font-family:inherit;flex-shrink:0">알겠습니다 ✓</button>
       </div>
     </div>
-    <div class="tbl-scroll" id="tblScroll"><table id="tbl"><thead id="tHead"></thead><tbody id="tBody"></tbody></table></div>
-    <div class="tbl-foot-scroll" id="tblFootScroll"><table id="tblFoot"><tfoot id="tFoot"></tfoot></table></div>
+    <div class="tbl-scroll" id="tblScroll"><table id="tbl"><thead id="tHead"></thead><tbody id="tBody"></tbody><tfoot id="tFoot"></tfoot></table></div>
     <div class="stat-warn-wrap">
       <div class="stats-row" id="sRow"></div>
       <div class="warn-summary" id="warnSummary"></div>
@@ -1483,7 +1491,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.4';
+const APP_VERSION = '3.16.14';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -1551,229 +1559,218 @@ const RBG={'수간호사':'#FCEBEB','주임':'#FAEEDA','차지':'#E6F1FB','평�
 const RCOL={'수간호사':'#791F1F','주임':'#633806','차지':'#0C447C','평간호사':'#27500A','신규간호사':'#4A2E8A'};
 const MKO=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const DKO=['일','월','화','수','목','금','토'];
-// ── 공휴일 데이터 (기본 하드코딩 + 구글 캘린더 ICS 동적 갱신 가능) ──────
-// HOL: { 'YYYY': { 'M': ['D', ...] } }
-// HOLN: { 'YYYY-M-D': '공휴일명' }
-// ── 공휴일 데이터 (최소 하드코딩 + 외부 갱신 우선) ──────────────────────
-// 전략: 외부(nager.at) 갱신 데이터가 있으면 그것만 사용.
-// 하드코딩은 갱신 전 기본값으로만 쓰이며, 대체공휴일은 자체 로직으로 계산.
+// ── CalendarStore — 국가 공휴일 도메인 캡슐화 (모듈화 1단계) ──────────────
+// 목적: 공휴일 데이터 소스(하드코딩 → 외부 API → 서버 테이블)를 한 모듈로 격리.
+//   호출부(isH/hn/isWH 등 수십 곳)는 인터페이스만 의존하고, 내부 소스는 자유 교체.
+//   서버 이식 시 이 모듈의 build()/load()/refresh()만 ApiRepository로 갈아끼우면 됨.
+// 공개 API (month는 1-based — 서버 holiday(year,date,name) 매핑과 일치):
+//   CalendarStore.isHoliday(y, m, d)  -> bool
+//   CalendarStore.name(y, m, d)       -> '공휴일명' | ''
+//   CalendarStore.holidays(year)      -> [{month, day, name}]
+//   CalendarStore.build()             -> 룩업 테이블 재생성 (구 buildHolLookup)
+//   CalendarStore.load()              -> 저장된 외부 데이터 로드 후 build (구 loadSavedHolidays)
+//   CalendarStore.refresh(years?)     -> nager.at 갱신(Promise<count>). UI 무관, 데이터만.
+//   CalendarStore.lastUpdated()       -> ISO 문자열 | null
+// 주의: 병동별 커스텀 이벤트(customEvents)는 별도 도메인(스펙 2.6) → 여기 포함 안 함.
+//   국가 공휴일만 다루며, isH/hn 어댑터가 customEvents를 합산한다.
+var CalendarStore = (function(){
+  // ── private state ──────────────────────────────────────────────────────
+  // 기본 고정 공휴일 (음력 연휴·대체공휴일 제외) — 외부 갱신 전 폴백값
+  var BASE_HOL_LIST = {
+    2025: [{m:1,d:1,n:'신정'},{m:3,d:1,n:'삼일절'},{m:5,d:1,n:'근로자'},{m:5,d:5,n:'어린이날'},
+           {m:6,d:6,n:'현충일'},{m:8,d:15,n:'광복절'},{m:10,d:3,n:'개천절'},{m:10,d:9,n:'한글날'},{m:12,d:25,n:'성탄절'}],
+    2026: [{m:1,d:1,n:'신정'},{m:3,d:1,n:'삼일절'},{m:5,d:1,n:'근로자'},{m:5,d:5,n:'어린이날'},
+           {m:5,d:25,n:'부처님오신날'},{m:6,d:6,n:'현충일'},{m:8,d:15,n:'광복절'},{m:10,d:3,n:'개천절'},{m:10,d:9,n:'한글날'},{m:12,d:25,n:'성탄절'}],
+    2027: [{m:1,d:1,n:'신정'},{m:3,d:1,n:'삼일절'},{m:5,d:1,n:'근로자'},{m:5,d:5,n:'어린이날'},
+           {m:6,d:6,n:'현충일'},{m:8,d:15,n:'광복절'},{m:10,d:3,n:'개천절'},{m:10,d:9,n:'한글날'},{m:12,d:25,n:'성탄절'}],
+  };
+  // 음력 연휴 (설날/추석 — 매년 변동, 외부 갱신으로 덮어씀)
+  var LUNAR_HOL_LIST = {
+    2025: [{m:2,d:2,n:'설날'},{m:2,d:3,n:'설날'},{m:2,d:4,n:'설날'},
+           {m:10,d:5,n:'추석'},{m:10,d:6,n:'추석'},{m:10,d:7,n:'추석'}],
+    2026: [{m:2,d:17,n:'설날'},{m:2,d:18,n:'설날'},{m:2,d:19,n:'설날'},
+           {m:9,d:28,n:'추석'},{m:9,d:29,n:'추석'},{m:9,d:30,n:'추석'}],
+    2027: [{m:2,d:6,n:'설날'},{m:2,d:7,n:'설날'},{m:2,d:8,n:'설날'},
+           {m:9,d:15,n:'추석'},{m:9,d:16,n:'추석'},{m:9,d:17,n:'추석'}],
+  };
+  // 대체공휴일 적용 대상 (관공서의 공휴일에 관한 규정)
+  var SUBST_ELIGIBLE = {
+    '삼일절':true,'광복절':true,'개천절':true,'한글날':true,
+    '어린이날':true,'부처님오신날':true,'성탄절':true
+  };
+  // 설날/추석 연휴는 일요일과 겹칠 때만
+  var LUNAR_SUBST = {'설날':true,'추석':true};
 
-// 기본 고정 공휴일 (음력 연휴·대체공휴일 제외)
-var BASE_HOL_LIST = {
-  2025: [{m:1,d:1,n:'신정'},{m:3,d:1,n:'삼일절'},{m:5,d:1,n:'근로자'},{m:5,d:5,n:'어린이날'},
-         {m:6,d:6,n:'현충일'},{m:8,d:15,n:'광복절'},{m:10,d:3,n:'개천절'},{m:10,d:9,n:'한글날'},{m:12,d:25,n:'성탄절'}],
-  2026: [{m:1,d:1,n:'신정'},{m:3,d:1,n:'삼일절'},{m:5,d:1,n:'근로자'},{m:5,d:5,n:'어린이날'},
-         {m:5,d:25,n:'부처님오신날'},{m:6,d:6,n:'현충일'},{m:8,d:15,n:'광복절'},{m:10,d:3,n:'개천절'},{m:10,d:9,n:'한글날'},{m:12,d:25,n:'성탄절'}],
-  2027: [{m:1,d:1,n:'신정'},{m:3,d:1,n:'삼일절'},{m:5,d:1,n:'근로자'},{m:5,d:5,n:'어린이날'},
-         {m:6,d:6,n:'현충일'},{m:8,d:15,n:'광복절'},{m:10,d:3,n:'개천절'},{m:10,d:9,n:'한글날'},{m:12,d:25,n:'성탄절'}],
-};
+  // 외부 갱신 데이터 (nager.at) — refresh()가 여기에 저장. key: 'YYYY', value: [{m,d,n}]
+  var EXT_HOL = {}; // 갱신되면 BASE+LUNAR를 대체
+  // 최종 룩업 테이블
+  var HOL  = {}; // {'YYYY': {'M': ['D',...]}}  (M, D는 문자열, M은 1-based)
+  var HOLN = {}; // {'YYYY-M-D': '이름'}        (M은 1-based)
 
-// 음력 연휴 (설날/추석 — 매년 변동, 외부 갱신으로 덮어씀)
-var LUNAR_HOL_LIST = {
-  2025: [{m:2,d:2,n:'설날'},{m:2,d:3,n:'설날'},{m:2,d:4,n:'설날'},
-         {m:10,d:5,n:'추석'},{m:10,d:6,n:'추석'},{m:10,d:7,n:'추석'}],
-  2026: [{m:2,d:17,n:'설날'},{m:2,d:18,n:'설날'},{m:2,d:19,n:'설날'},
-         {m:9,d:28,n:'추석'},{m:9,d:29,n:'추석'},{m:9,d:30,n:'추석'}],
-  2027: [{m:2,d:6,n:'설날'},{m:2,d:7,n:'설날'},{m:2,d:8,n:'설날'},
-         {m:9,d:15,n:'추석'},{m:9,d:16,n:'추석'},{m:9,d:17,n:'추석'}],
-};
+  var STORE_KEY = 'dv6_extHol';
+  var UPD_KEY   = 'dv6_hol_updated';
 
-// 대체공휴일 적용 대상 (관공서의 공휴일에 관한 규정)
-var SUBST_ELIGIBLE = {
-  '삼일절':true,'광복절':true,'개천절':true,'한글날':true,
-  '어린이날':true,'부처님오신날':true,'성탄절':true
-};
-// 설날/추석 연휴는 일요일과 겹칠 때만
-var LUNAR_SUBST = {'설날':true,'추석':true};
-
-// 외부 갱신 데이터 (nager.at) — fetchHolidays()가 여기에 저장
-// key: 'YYYY', value: [{m,d,n}]
-var EXT_HOL = {}; // 갱신되면 BASE+LUNAR를 대체
-
-// HOL, HOLN: isH()/hn()에서 사용하는 최종 룩업 테이블
-var HOL  = {}; // {'YYYY': {'M': ['D',...]}}
-var HOLN = {}; // {'YYYY-M-D': '이름'}
-
-// ── 대체공휴일 계산 (법령 로직) ──────────────────────────────────────────
-function calcSubstitutes(year, holEntries) {
-  // holEntries: [{m,d,n}] — 해당 연도 모든 공휴일 (기본+음력)
-  var taken = {};
-  holEntries.forEach(function(h){ taken[year+'-'+h.m+'-'+h.d]=true; });
-
-  var subs = [];
-
-  function nextWeekday(yy, mm, dd) {
-    // 다음 첫 번째 비공휴일 평일 찾기
-    var dt = new Date(yy, mm-1, dd+1);
-    var safety = 0;
-    while(safety < 14) {
+  // ── 대체공휴일 계산 (법령 로직) ────────────────────────────────────────
+  function calcSubstitutes(year, holEntries) {
+    // holEntries: [{m,d,n}] — 해당 연도 모든 공휴일 (기본+음력)
+    var taken = {};
+    holEntries.forEach(function(h){ taken[year+'-'+h.m+'-'+h.d]=true; });
+    var subs = [];
+    function nextWeekday(yy, mm, dd) {
+      var dt = new Date(yy, mm-1, dd+1);
+      var safety = 0;
+      while(safety < 14) {
+        var dw = dt.getDay(); // 0=일,6=토
+        var key = dt.getFullYear()+'-'+(dt.getMonth()+1)+'-'+dt.getDate();
+        if(dw !== 0 && dw !== 6 && !taken[key]) {
+          return {m: dt.getMonth()+1, d: dt.getDate(), dw: dw};
+        }
+        dt.setDate(dt.getDate()+1);
+        safety++;
+      }
+      return null;
+    }
+    holEntries.forEach(function(h) {
+      var dt = new Date(year, h.m-1, h.d);
       var dw = dt.getDay(); // 0=일,6=토
-      var key = dt.getFullYear()+'-'+(dt.getMonth()+1)+'-'+dt.getDate();
-      if(dw !== 0 && dw !== 6 && !taken[key]) {
-        return {m: dt.getMonth()+1, d: dt.getDate(), dw: dw};
-      }
-      dt.setDate(dt.getDate()+1);
-      safety++;
-    }
-    return null;
-  }
-
-  holEntries.forEach(function(h) {
-    var dt = new Date(year, h.m-1, h.d);
-    var dw = dt.getDay(); // 0=일,6=토
-    var isSat = dw === 6;
-    var isSun = dw === 0;
-
-    if(SUBST_ELIGIBLE[h.n] && (isSat || isSun)) {
-      var sub = nextWeekday(year, h.m, h.d);
-      if(sub) {
-        var key = year+'-'+sub.m+'-'+sub.d;
-        if(!taken[key]) {
-          taken[key] = true;
-          subs.push({m:sub.m, d:sub.d, n:h.n+'대체'});
+      var isSat = dw === 6;
+      var isSun = dw === 0;
+      if(SUBST_ELIGIBLE[h.n] && (isSat || isSun)) {
+        var sub = nextWeekday(year, h.m, h.d);
+        if(sub) {
+          var key = year+'-'+sub.m+'-'+sub.d;
+          if(!taken[key]) { taken[key] = true; subs.push({m:sub.m, d:sub.d, n:h.n+'대체'}); }
+        }
+      } else if(LUNAR_SUBST[h.n] && isSun) {
+        var sub2 = nextWeekday(year, h.m, h.d);
+        if(sub2) {
+          var key2 = year+'-'+sub2.m+'-'+sub2.d;
+          if(!taken[key2]) { taken[key2] = true; subs.push({m:sub2.m, d:sub2.d, n:h.n+'대체'}); }
         }
       }
-    } else if(LUNAR_SUBST[h.n] && isSun) {
-      // 설날/추석: 일요일과 겹칠 때만
-      var sub2 = nextWeekday(year, h.m, h.d);
-      if(sub2) {
-        var key2 = year+'-'+sub2.m+'-'+sub2.d;
-        if(!taken[key2]) {
-          taken[key2] = true;
-          subs.push({m:sub2.m, d:sub2.d, n:h.n+'대체'});
-        }
-      }
-    }
-  });
-  return subs;
-}
-
-// ── HOL/HOLN 빌드 ────────────────────────────────────────────────────────
-function buildHolLookup() {
-  HOL = {}; HOLN = {};
-  var years = [2025, 2026, 2027];
-  // 현재 연도 ±2 범위도 포함
-  var cy2 = new Date().getFullYear();
-  for(var y = cy2-1; y <= cy2+3; y++) {
-    if(years.indexOf(y) < 0) years.push(y);
-  }
-
-  years.forEach(function(y) {
-    var entries = [];
-
-    if(Object.keys(EXT_HOL).length > 0 && EXT_HOL[String(y)]) {
-      // 외부 갱신 데이터 사용 — 대체공휴일 포함 전체
-      entries = EXT_HOL[String(y)];
-    } else {
-      // 하드코딩 기본값 사용 + 대체공휴일 자동 계산
-      var base = (BASE_HOL_LIST[y]||[]).concat(LUNAR_HOL_LIST[y]||[]);
-      var subs = calcSubstitutes(y, base);
-      entries = base.concat(subs);
-    }
-
-    entries.forEach(function(h) {
-      var ys = String(y), ms = String(h.m), ds = String(h.d);
-      if(!HOL[ys]) HOL[ys] = {};
-      if(!HOL[ys][ms]) HOL[ys][ms] = [];
-      if(HOL[ys][ms].indexOf(ds) < 0) HOL[ys][ms].push(ds);
-      HOLN[ys+'-'+ms+'-'+ds] = h.n;
     });
-  });
-}
+    return subs;
+  }
 
-// ── 공휴일 자동 갱신 (nager.at REST API) ────────────────────────────────
-// 갱신 성공 시 EXT_HOL에 저장 → buildHolLookup() 재실행
-// 실패 시 하드코딩 + 대체공휴일 자동계산 그대로 유지
+  // ── 룩업 테이블 빌드 ───────────────────────────────────────────────────
+  function build() {
+    HOL = {}; HOLN = {};
+    var years = [2025, 2026, 2027];
+    var cy2 = new Date().getFullYear();
+    for(var y = cy2-1; y <= cy2+3; y++) { if(years.indexOf(y) < 0) years.push(y); }
+    years.forEach(function(y) {
+      var entries = [];
+      if(Object.keys(EXT_HOL).length > 0 && EXT_HOL[String(y)]) {
+        entries = EXT_HOL[String(y)]; // 외부 갱신 데이터 (대체공휴일 포함 전체)
+      } else {
+        var base = (BASE_HOL_LIST[y]||[]).concat(LUNAR_HOL_LIST[y]||[]);
+        var subs = calcSubstitutes(y, base);
+        entries = base.concat(subs);
+      }
+      entries.forEach(function(h) {
+        var ys = String(y), ms = String(h.m), ds = String(h.d);
+        if(!HOL[ys]) HOL[ys] = {};
+        if(!HOL[ys][ms]) HOL[ys][ms] = [];
+        if(HOL[ys][ms].indexOf(ds) < 0) HOL[ys][ms].push(ds);
+        HOLN[ys+'-'+ms+'-'+ds] = h.n;
+      });
+    });
+  }
 
+  // ── 저장된 외부 데이터 로드 ────────────────────────────────────────────
+  function load() {
+    try { var ext = localStorage.getItem(STORE_KEY); if(ext) EXT_HOL = JSON.parse(ext); } catch(e){}
+    build();
+  }
+
+  // ── nager.at 갱신 (데이터만, UI 무관) → Promise<로드 개수> ─────────────
+  function refresh(years) {
+    var baseYear = new Date().getFullYear();
+    years = years || [baseYear-1, baseYear, baseYear+1, baseYear+2];
+    var newEXT = {};
+    var totalCnt = 0;
+    var KR_MAP = {
+      "New Year's Day":'신정',"Independence Movement Day":'삼일절',
+      "Labour Day":'근로자',"Labor Day":'근로자',"Children's Day":'어린이날',
+      "Buddha's Birthday":'부처님오신날',"Buddhas Birthday":'부처님오신날',
+      "Memorial Day":'현충일',"Liberation Day":'광복절',"National Foundation Day":'개천절',
+      "Hangul Day":'한글날',"Christmas Day":'성탄절',
+      "Lunar New Year's Eve":'설날전날',"Lunar New Year":'설날',
+      "Chuseok Eve":'추석전날',"Chuseok":'추석',"The day after Chuseok":'추석다음날',
+      "Substitute holiday":'대체공휴일',"Alternative holiday":'대체공휴일',
+    };
+    function mapName(item) {
+      var en = item.name || '', lo = item.localName || '';
+      if(/[가-힣]/.test(lo)) return lo.length > 5 ? lo.slice(0,5) : lo;
+      if(KR_MAP[en]) return KR_MAP[en];
+      if(/substitute|alternative/i.test(en)) return '대체공휴일';
+      return lo || en || '공휴일';
+    }
+    var promises = years.map(function(y) {
+      return fetch('https://date.nager.at/api/v3/PublicHolidays/'+y+'/KR')
+        .then(function(r) { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+        .then(function(list) {
+          if(!Array.isArray(list)) return;
+          newEXT[String(y)] = [];
+          list.forEach(function(item) {
+            var parts = item.date.split('-');
+            newEXT[String(y)].push({m:parseInt(parts[1]), d:parseInt(parts[2]), n:mapName(item)});
+            totalCnt++;
+          });
+        });
+    });
+    return Promise.all(promises).then(function() {
+      if(totalCnt === 0) throw new Error('데이터 없음');
+      EXT_HOL = newEXT;
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify(EXT_HOL));
+        localStorage.setItem(UPD_KEY, new Date().toISOString());
+      } catch(e) {}
+      build();
+      return totalCnt;
+    });
+  }
+
+  // ── 조회 API (month 1-based) ───────────────────────────────────────────
+  function isHoliday(y, m, d) {
+    var arr = (HOL[String(y)]||{})[String(m)]||[];
+    return arr.indexOf(String(d)) >= 0;
+  }
+  function name(y, m, d) { return HOLN[y+'-'+m+'-'+d] || ''; }
+  function holidays(year) {
+    var ys = String(year), out = [], mm = HOL[ys]||{};
+    Object.keys(mm).forEach(function(ms){
+      (mm[ms]||[]).forEach(function(ds){
+        out.push({month:parseInt(ms), day:parseInt(ds), name:HOLN[ys+'-'+ms+'-'+ds]||''});
+      });
+    });
+    return out;
+  }
+  function lastUpdated() { try { return localStorage.getItem(UPD_KEY); } catch(e){ return null; } }
+
+  return { isHoliday:isHoliday, name:name, holidays:holidays,
+           build:build, load:load, refresh:refresh, lastUpdated:lastUpdated };
+})();
+
+// ── nager.at 갱신 UI 래퍼 (데이터는 CalendarStore.refresh가 담당) ─────────
 function fetchHolidays() {
   var btn = document.getElementById('holBtn');
   if(btn){ btn.textContent = '📅 불러오는 중...'; btn.disabled = true; }
   else { showToast('📅 공휴일 불러오는 중...', 2000); }
-
-  var baseYear = new Date().getFullYear();
-  var years = [baseYear-1, baseYear, baseYear+1, baseYear+2];
-  var newEXT = {};
-  var totalCnt = 0;
-
-  // 영문명 → 한국어 매핑
-  var KR_MAP = {
-    "New Year's Day":'신정',
-    "Independence Movement Day":'삼일절',
-    "Labour Day":'근로자',"Labor Day":'근로자',
-    "Children's Day":'어린이날',
-    "Buddha's Birthday":'부처님오신날',"Buddhas Birthday":'부처님오신날',
-    "Memorial Day":'현충일',
-    "Liberation Day":'광복절',
-    "National Foundation Day":'개천절',
-    "Hangul Day":'한글날',
-    "Christmas Day":'성탄절',
-    "Lunar New Year's Eve":'설날전날',
-    "Lunar New Year":'설날',
-    "Chuseok Eve":'추석전날',
-    "Chuseok":'추석',
-    "The day after Chuseok":'추석다음날',
-    "Substitute holiday":'대체공휴일',
-    "Alternative holiday":'대체공휴일',
-  };
-  // "substitute"가 포함된 이름 처리
-  function mapName(item) {
-    var en = item.name || '';
-    var lo = item.localName || '';
-    // localName이 한국어면 우선 사용 (한국어 판별: 유니코드 범위)
-    if(/[가-힣]/.test(lo)) return lo.length > 5 ? lo.slice(0,5) : lo;
-    // 영문 → 매핑
-    if(KR_MAP[en]) return KR_MAP[en];
-    // substitute 패턴
-    if(/substitute|alternative/i.test(en)) return '대체공휴일';
-    return lo || en || '공휴일';
-  }
-
-  var promises = years.map(function(y) {
-    return fetch('https://date.nager.at/api/v3/PublicHolidays/'+y+'/KR')
-      .then(function(r) {
-        if(!r.ok) throw new Error('HTTP '+r.status);
-        return r.json();
-      })
-      .then(function(list) {
-        if(!Array.isArray(list)) return;
-        newEXT[String(y)] = [];
-        list.forEach(function(item) {
-          var parts = item.date.split('-');
-          var m = parseInt(parts[1]), d = parseInt(parts[2]);
-          var n = mapName(item);
-          newEXT[String(y)].push({m:m, d:d, n:n});
-          totalCnt++;
-        });
-      });
-  });
-
-  Promise.all(promises)
-    .then(function() {
-      if(totalCnt === 0) throw new Error('데이터 없음');
-      EXT_HOL = newEXT;
-      // localStorage에 저장
-      try {
-        localStorage.setItem('dv6_extHol', JSON.stringify(EXT_HOL));
-        localStorage.setItem('dv6_hol_updated', new Date().toISOString());
-      } catch(e) {}
-      buildHolLookup();
+  CalendarStore.refresh()
+    .then(function(totalCnt){
       render();
       if(btn){ btn.textContent = '📅 공휴일 갱신'; btn.disabled = false; }
       showToast('공휴일 갱신 완료 — '+totalCnt+'개 로드 ✓', 3000);
     })
-    .catch(function(err) {
+    .catch(function(err){
       if(btn){ btn.textContent = '📅 공휴일 갱신'; btn.disabled = false; }
       showToast('갱신 실패: '+err.message, 4000);
     });
 }
 
-function loadSavedHolidays(){
-  try{
-    var ext = localStorage.getItem('dv6_extHol');
-    if(ext) EXT_HOL = JSON.parse(ext);
-  }catch(e){}
-  buildHolLookup();
-}
+// 구 loadSavedHolidays 호출부(초기화) 하위호환 별칭 — 내부는 CalendarStore.load
+function loadSavedHolidays(){ CalendarStore.load(); }
 
 // v3.9.5: 데모 데이터 — 이름에 직급 명시하여 첫 사용자가 예제임을 인지하기 쉽게
 let nurses=[
@@ -2064,9 +2061,12 @@ function openReport(){
   document.getElementById('reportOv').classList.add('open');
 }
 
-function buildReportData(){
+function buildReportData(ctx){
+  ctx = ctx || currentCtx();
+  var cy=ctx.year, cm=ctx.month, nurses=ctx.nurses, schedule=ctx.schedule, RULES=ctx.rules;
+  var key=(nid,d)=>cellKey(cy,cm,nid,d);
   var nd=ndays(cy,cm);
-  var quota=offQ();
+  var quota=offQ(undefined, ctx);
   var ord=sorted();
   var rows=[];
   var totals={D:0,E:0,N:0,O:0,V:0,B:0,empty:0};
@@ -2080,7 +2080,7 @@ function buildReportData(){
       vacUsed:cntVacYear(n.id,cy),
       vacRemain:remVac(n),
       offUsed:cntOff(n.id),
-      offQuota:n.role==='수간호사'?null:offQ(n.id),  // v3.11: 사람별(이월 포함)
+      offQuota:n.role==='수간호사'?null:offQ(n.id, ctx),  // v3.11: 사람별(이월 포함)
       offBase:n.role==='수간호사'?null:offBase(),     // 이월 제외 기본
       offCarry:n.role==='수간호사'?null:((n.carryOver&&typeof n.carryOver.offBalance==='number')?n.carryOver.offBalance:0),
       days:[]
@@ -2102,7 +2102,7 @@ function buildReportData(){
     row.balanceScore=Math.max(0,10-Math.round(Math.sqrt(dvar)));
     // v3.16.3: 피로도 점수 (수간호사 제외 — 고정 주간이라 의미 없음)
     if(n.role!=='수간호사' && RULES.fatigue && RULES.fatigue.enabled){
-      var fg=fatigueScore(n.id);
+      var fg=fatigueScore(n.id, ctx);
       row.fatigue=fg.total; row.fatigueLevel=fg.level;
     } else {
       row.fatigue=null; row.fatigueLevel=null;
@@ -2689,7 +2689,111 @@ let kbEnabled=(function(){ try{ var v=localStorage.getItem(dataKey('dv6_kbd')); 
 // helpers
 const ndays=(y,m)=>new Date(y,m+1,0).getDate();
 const dow=(y,m,d)=>new Date(y,m,d).getDay();
-const key=(nid,d)=>nid+'|'+cy+'|'+cm+'|'+d;
+// ── 셀 키 정규화 + ScheduleStore/LockStore (모듈화 2단계) ──────────────────
+// 목적: 셀/락 데이터를 "현재 달(cy/cm) 속박"에서 풀어 임의 병동·임의 달 조회 가능화.
+//   핵심 장애물이던 key(nid,d)=nid|cy|cm|d 를 명시적 cellKey(y,m,nid,d)로 일원화.
+//   현재 병동은 라이브 전역(schedule/lockedCells)이 단일 진실원 — 기존 106/12 접근부 무변경.
+//   다른 병동은 _others 버킷에 적재(다병동 대시보드 / Repository 이행 기반).
+//   inner key 포맷(nid|y|m|d, m은 0-based)은 불변 → 기존 저장 데이터 100% 호환.
+// 서버 매핑: schedule_cell(ward_id, nurse_id, year, month, day, shift, locked).
+const cellKey=(y,m,nid,d)=>nid+'|'+y+'|'+m+'|'+d;   // 정규 inner key (병동 비포함; 병동=버킷)
+const key=(nid,d)=>cellKey(cy,cm,nid,d);             // 레거시 어댑터(현재 달) — 출력 동일
+
+const ScheduleStore = {
+  _others: {},                                        // { wardId: { 'nid|y|m|d': code } } (현재 병동 제외)
+  cellKey: cellKey,
+  ward: function(wardId){                             // 현재 병동은 라이브 전역, 그 외는 버킷
+    return (wardId==null || wardId===WARD_ID) ? schedule
+         : (this._others[wardId] || (this._others[wardId]={}));
+  },
+  setWard: function(wardId, map){                     // 버킷 교체(로드/임포트/복원/대시보드 적재)
+    if(wardId==null || wardId===WARD_ID) schedule = map || {};
+    else this._others[wardId] = map || {};
+  },
+  get: function(wardId,y,m,nid,d){ return this.ward(wardId)[cellKey(y,m,nid,d)] || ''; },
+  set: function(wardId,y,m,nid,d,code){
+    var w=this.ward(wardId), k=cellKey(y,m,nid,d);
+    if(code==null || code==='') delete w[k]; else w[k]=code;
+  },
+  del: function(wardId,y,m,nid,d){ delete this.ward(wardId)[cellKey(y,m,nid,d)]; },
+  monthCells: function(wardId,y,m){                   // 해당 병동·달 셀만 {fullKey:code}
+    var w=this.ward(wardId), pre='|'+y+'|'+m+'|', out={};
+    Object.keys(w).forEach(function(k){ if(k.indexOf(pre)>0) out[k]=w[k]; });
+    return out;
+  },
+  removeNurse: function(wardId,nid){                  // 간호사 전 셀 삭제(전 달)
+    var w=this.ward(wardId);
+    Object.keys(w).forEach(function(k){ if(k.indexOf(nid+'|')===0) delete w[k]; });
+  }
+};
+
+const LockStore = {                                   // 락은 셀과 운명공동체 — 동일 키체계(스펙 2.5)
+  _others: {},
+  cellKey: cellKey,
+  ward: function(wardId){
+    return (wardId==null || wardId===WARD_ID) ? lockedCells
+         : (this._others[wardId] || (this._others[wardId]={}));
+  },
+  setWard: function(wardId, map){
+    if(wardId==null || wardId===WARD_ID) lockedCells = map || {};
+    else this._others[wardId] = map || {};
+  },
+  get: function(wardId,y,m,nid,d){ return this.ward(wardId)[cellKey(y,m,nid,d)]; },
+  set: function(wardId,y,m,nid,d,meta){ this.ward(wardId)[cellKey(y,m,nid,d)] = meta; },
+  del: function(wardId,y,m,nid,d){ delete this.ward(wardId)[cellKey(y,m,nid,d)]; },
+  removeNurse: function(wardId,nid){
+    var w=this.ward(wardId);
+    Object.keys(w).forEach(function(k){ if(k.indexOf(nid+'|')===0) delete w[k]; });
+  }
+};
+
+// ── ctx(컨텍스트 주입) + currentCtx + computeWardSummary (모듈화 3단계) ──────
+// 목적: 계산 함수가 전역(cy/cm/nurses/schedule/RULES…)을 직접 읽던 것을 명시적 ctx로.
+//   기법: 함수 진입부에서 ctx를 동일 이름 지역변수로 분해 + 지역 key(ctx 달 기준) →
+//          본문은 한 줄도 안 바뀌고 ctx 데이터를 읽음. ctx 생략 시 currentCtx()(=현재 전역).
+//   효과: 임의 병동·임의 달 계산 가능(다병동 대시보드 전제). 단일병동 호출부는 무변경.
+// ⚠️ 경계: getNurse/getHeadNurse/isLocked/headSeniorBonus/staffingFor는 아직 전역을 읽음
+//   → 현재 병동 계산은 완전 정확. 비현재 병동의 이들 경유 값은 후속(4단계)에서 ctx화 예정.
+function currentCtx(){
+  return { wardId:WARD_ID, year:cy, month:cm, nurses:nurses,
+           schedule:schedule, lockedCells:lockedCells, rules:RULES, calendar:CalendarStore };
+}
+// 다병동 대시보드 공통 엔진 — DOM 없이 숫자만. (스펙 §3.3/§4)
+function computeWardSummary(ctx){
+  ctx = ctx || currentCtx();
+  var ns = ctx.nurses || [], y=ctx.year, m=ctx.month;
+  var nd = ndays(y, m);
+  var cf = conflicts(ctx);
+  var lex = lexScore(cf);                                  // [L1,L2,L3,L4]
+  var perShift = {D:0,E:0,N:0,O:0}, filled=0, slots=ns.length*nd, highFatigue=0;
+  var offReal={}, offTarget={};
+  ns.forEach(function(n){
+    if(n.role==='수간호사'){ return; }
+    var cnt=0;
+    for(var d=1; d<=nd; d++){
+      var c = ScheduleStore.get(ctx.wardId, y, m, n.id, d);
+      if(c){ filled++; if(perShift.hasOwnProperty(c)) perShift[c]++; }
+      if(c==='O') cnt++;
+    }
+    offReal[n.id]=cnt; offTarget[n.id]=offQ(n.id, ctx);
+    try{ if((fatigueScore(n.id, ctx)||{}).level==='high') highFatigue++; }catch(e){}
+  });
+  var ids=Object.keys(offReal), devs=ids.map(function(id){return Math.abs(offReal[id]-(offTarget[id]||0));});
+  var offDev = devs.length ? devs.reduce(function(a,b){return a+b;},0)/devs.length : 0;
+  // 일자별 미달(어느 시프트든 min 미달인 날) 카운트 — computeDayStats 재사용
+  var ds=computeDayStats(ctx), understaffedDays=0;
+  for(var dd=1; dd<=ds.nd; dd++){ var pc=ds.perDay[dd]; if(pc.under.D||pc.under.E||pc.under.N) understaffedDays++; }
+  return {
+    wardId: ctx.wardId, year:y, month:m,
+    nurseCount: ns.length,
+    fillRate: slots ? +(filled/slots*100).toFixed(1) : 0,
+    perShift: perShift,
+    offDeviation: +offDev.toFixed(2),
+    highFatigue: highFatigue,
+    understaffedDays: understaffedDays,
+    conflicts: {L1:lex[0], L2:lex[1], L3:lex[2], L4:lex[3]}
+  };
+}
 
 // v3.13: 선임 판정 단일 진실 공급원 (Single Source of Truth).
 //   기존엔 'n.role==='주임'||n.role==='차지''가 5곳에 복붙돼 있어, 선임 정의 변경 시
@@ -2705,12 +2809,17 @@ function isSenior(n){
 // v3.14: 특정 날(d)·시프트(sh)에서 수간호사가 선임 정원을 채워주는지.
 //   조건: ①headNurseAsSenior 옵션 ON ②그 시프트가 Day ③수간호사가 그 날 실제 D에 배치됨.
 //   목적: 평일 Day에 수간호사가 있으니 선임 1명으로 인정 → 차지를 Day에 낭비하지 않게.
-function headSeniorBonus(sh, d){
+function headSeniorBonus(sh, d, ctx){
+  // 4단계: 선택적 ctx — 비현재 병동/달도 정확. 생략 시 전역(기존 호출부 무변경)
+  var R = (ctx && ctx.rules) ? ctx.rules : RULES;
   if(sh!=='D') return 0;
-  if(!(RULES.staffing && RULES.staffing.headNurseAsSenior)) return 0;
-  var head=getHeadNurse();
+  if(!(R.staffing && R.staffing.headNurseAsSenior)) return 0;
+  var head=getHeadNurse(ctx);
   if(!head) return 0;
-  return (schedule[key(head.id, d)]==='D') ? 1 : 0;
+  var code = ctx
+    ? ScheduleStore.get(ctx.wardId, ctx.year, ctx.month, head.id, d)
+    : schedule[key(head.id, d)];
+  return (code==='D') ? 1 : 0;
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -2718,7 +2827,10 @@ function headSeniorBonus(sh, d){
 //   순수 평가 지표 — 자동배치 알고리듬과 무관. 근무표만으로 월 피로도 계산.
 //   3요소 합산: ①근무 타이밍 ②누적(연속·회복부족) ③회전 방향(역회전).
 // ════════════════════════════════════════════════════════════════════════
-function fatigueScore(nid){
+function fatigueScore(nid, ctx){
+  ctx = ctx || currentCtx();
+  var cy=ctx.year, cm=ctx.month, nurses=ctx.nurses, schedule=ctx.schedule, RULES=ctx.rules;
+  var key=(nid,d)=>cellKey(cy,cm,nid,d);
   var F=RULES.fatigue;
   if(!F) return {total:0, level:'low', timing:0, cumulative:0, rotation:0, nights:0, maxStreak:0, reverses:0, singleOffs:0};
   var nd=ndays(cy,cm);
@@ -2802,17 +2914,20 @@ function applyRepeatPattern(nid){
 
 // ── 1단계: 조회 헬퍼 ──────────────────────────────────────────────────
 //   getNurse(id) 패턴(31곳)을 단일화.
-function getNurse(id){
+function getNurse(id, ctx){
+  // 4단계: 선택적 ctx — 있으면 ctx.nurses, 없으면 전역(기존 호출부 무변경)
+  var arr = (ctx && ctx.nurses) ? ctx.nurses : nurses;
   if(id===null || id===undefined) return null;
-  for(var i=0;i<nurses.length;i++){ if(nurses[i].id===id) return nurses[i]; }
+  for(var i=0;i<arr.length;i++){ if(arr[i].id===id) return arr[i]; }
   return null;
 }
 function getNurseIndex(id){
   for(var i=0;i<nurses.length;i++){ if(nurses[i].id===id) return i; }
   return -1;
 }
-function getHeadNurse(){
-  for(var i=0;i<nurses.length;i++){ if(nurses[i].role==='수간호사') return nurses[i]; }
+function getHeadNurse(ctx){
+  var arr = (ctx && ctx.nurses) ? ctx.nurses : nurses;
+  for(var i=0;i<arr.length;i++){ if(arr[i].role==='수간호사') return arr[i]; }
   return null;
 }
 
@@ -2887,8 +3002,8 @@ var NurseStore = {
   // 삭제: 간호사 + 관련 듀티·락 정리
   remove: function(id){
     nurses = nurses.filter(function(n){return n.id!==id;});
-    Object.keys(schedule).forEach(function(k){ if(k.indexOf(id+'|')===0) delete schedule[k]; });
-    Object.keys(lockedCells).forEach(function(k){ if(k.indexOf(id+'|')===0) delete lockedCells[k]; });
+    ScheduleStore.removeNurse(WARD_ID, id);
+    LockStore.removeNurse(WARD_ID, id);
   }
 };
 
@@ -2960,18 +3075,17 @@ function clearLocksThisMonth(){
   });
   return removed;
 }
+// isH/hn/isWH: 레거시 어댑터 (m은 0-based, cm과 동일). 국가 공휴일은 CalendarStore,
+//   병동별 커스텀 이벤트(customEvents)는 여기서 합산 (스펙 2.6 — 별도 도메인 유지).
 function isH(y,m,d){
-  // m은 0-based (cm과 동일). HOL 키는 1-based 월 문자열.
-  var arr=(HOL[String(y)]||{})[String(m+1)]||[];
-  if(arr.indexOf(String(d))>=0) return true;
+  if(CalendarStore.isHoliday(y, m+1, d)) return true;
   // 커스텀 이벤트: date는 'YYYY-M-D' 형식, M은 1-based
   return customEvents.some(function(e){
     return e.type==='holiday' && e.date===String(y)+'-'+String(m+1)+'-'+String(d);
   });
 }
 function hn(y,m,d){
-  // m은 0-based
-  var base=HOLN[y+'-'+(m+1)+'-'+d]||'';
+  var base=CalendarStore.name(y, m+1, d);
   if(base) return base;
   // 커스텀 이벤트: date는 'YYYY-M-D', M은 1-based
   var key=String(y)+'-'+String(m+1)+'-'+String(d);
@@ -3019,12 +3133,14 @@ function reindexOrder(){
   ord.forEach(function(n,i){n.manualOrder=i;});
 }
 
-function offQ(nurseId){
+function offQ(nurseId, ctx){
+  ctx = ctx || currentCtx();
+  var cy=ctx.year, cm=ctx.month;
   // 기본 정량 = 그달의 휴일(토+일+공휴일) 수
   var nd=ndays(cy,cm),base=0;
   for(var d=1;d<=nd;d++) if(isWH(cy,cm,d)) base++;
   if(nurseId===undefined) return base;
-  var n=getNurse(nurseId);
+  var n=getNurse(nurseId, ctx);
   if(!n) return base;
   // v6.4: 사람별 수동 조정(override)이 있으면 그 값으로 대체 (이월과 무관하게 절대값)
   if(n.attributes && n.attributes.targetOffOverride!==null
@@ -3216,7 +3332,10 @@ var remVac=function(n){return(n.vacTotal||0)-cntVacYear(n.id, cy);};
 // 이번 달 연차 사용량 표시용 (패널 카드)
 var cntVacThisMonth=function(nid){return cntCode(nid,'V');};
 
-function conflicts(){
+function conflicts(ctx){
+  ctx = ctx || currentCtx();
+  var cy=ctx.year, cm=ctx.month, nurses=ctx.nurses, schedule=ctx.schedule, RULES=ctx.rules, WARD_ID=ctx.wardId;
+  var key=(nid,d)=>cellKey(cy,cm,nid,d);
   var nd=ndays(cy,cm);
   var sr=nurses.filter(isSenior);
   var pl=nurses.filter(function(n){return n.role==='평간호사'||n.role==='신규간호사';});
@@ -3229,7 +3348,7 @@ function conflicts(){
     for(var si=0;si<3;si++){
       var sh=['D','E','N'][si];
       var sc=sr.filter(function(n){return schedule[key(n.id,d)]===sh;}).length;
-      sc += headSeniorBonus(sh, d);  // v3.14: 평일 Day 수간호사 선임 인정 (옵션 ON 시)
+      sc += headSeniorBonus(sh, d, ctx);  // v3.14: 평일 Day 수간호사 선임 인정 (옵션 ON 시)
       var pc=pl.filter(function(n){return schedule[key(n.id,d)]===sh;}).length;
       var total=sc+pc;
       if(total===0) continue; // 아무도 없으면 체크 안함
@@ -3431,7 +3550,7 @@ function conflicts(){
     // 이월되므로 한 달 단위 강제(L1)가 아니라 L3 적정배분. target은 이월 포함.
     if(n.role!=='수간호사'){
       var offUsed = cntOff(n.id);          // 실제 배정된 off 수 (O만, V·B 제외)
-      var offTarget = offQ(n.id);          // 사람별 target (기본정량 + 이월잔고)
+      var offTarget = offQ(n.id, ctx);          // 사람별 target (기본정량 + 이월잔고)
       var offDiff = offUsed - offTarget;
       if(offDiff !== 0){
         list.push({d:0, sh:'O', sc:0, pc:offUsed, type:'off-balance', severity:'low',
@@ -4807,7 +4926,15 @@ function render(){
     hh+='<th class="dh '+cls+tCls+'">'+d+'<br><span style="font-weight:400;opacity:.8;font-size:9px">'+DKO[w]+'</span>'+(hname?'<br><span style="font-size:7px;color:#A32D2D;line-height:1">'+hname+'</span>':'')+evtHtml+bdayHtml+'</th>';
   }
   hh+='</tr>';
-  document.getElementById('tHead').innerHTML=cg+hh;
+  document.getElementById('tHead').innerHTML=hh;
+  // v3.16.10: colgroup은 <table> 직속이어야 유효(thead 안에 넣으면 브라우저가 무시).
+  //   table 직속 colgroup → table-layout:fixed가 thead/tbody/tfoot 전체에 동일 폭 적용
+  //   → 하단 통계행(tfoot)이 캘린더 셀과 항상 정렬(간호사수·창크기 무관).
+  (function(){
+    var tb=document.getElementById('tbl');
+    var old=tb.querySelector(':scope > colgroup'); if(old) tb.removeChild(old);
+    tb.insertAdjacentHTML('afterbegin', cg);
+  })();
 
   var Q=offQ();
   var ord=sorted();
@@ -4909,7 +5036,6 @@ function render(){
   renderStats(cf, _pvList);
   renderDayStats();
   applyKbFocus();  // v3.14: 키보드 포커스 셀 표시 복원 (render로 DOM 새로 그려졌으므로)
-  setupFootScrollSync();  // v3.14.7: 통계 행 테이블 가로 스크롤을 본체와 동기화
   if(document.getElementById('sPanel').classList.contains('open')) renderCards();
   // v3.7: 원티드 모드 UI 상태 동기화 (카운트 갱신 포함)
   applyWantedModeUI();
@@ -4936,51 +5062,50 @@ function render(){
 }
 
 // v3.13: 하단 날짜별 통계 행 (dutymate 스타일) — 각 날짜의 D/E/N/O 인원 + 최소인원 미달 경고
-// v3.14.7: 통계 행(tfoot) 테이블의 가로 스크롤을 본체 표와 동기화.
-//   본체를 좌우로 스크롤하면 통계 행도 같은 만큼 이동 → 컬럼 정렬 유지.
+// v3.16.10: 통계 행을 본체 table의 tfoot로 통합 → 별도 테이블 스크롤 동기화 불필요(폐기).
+//   colgroup을 thead/tbody/tfoot가 공유하므로 열이 자동 정렬되고 한 컨테이너로 함께 스크롤됨.
 var _footSyncBound=false;
-function setupFootScrollSync(){
-  var body=document.getElementById('tblScroll');
-  var foot=document.getElementById('tblFootScroll');
-  if(!body||!foot) return;
-  // 즉시 한 번 동기화 (render 직후 위치 맞춤)
-  foot.scrollLeft=body.scrollLeft;
-  if(_footSyncBound) return;       // 리스너는 한 번만 등록
-  body.addEventListener('scroll', function(){ foot.scrollLeft=body.scrollLeft; });
-  _footSyncBound=true;
-}
+function setupFootScrollSync(){ /* no-op: tfoot가 본체 table에 통합됨 */ }
 
-function renderDayStats(){
-  var nd=ndays(cy,cm);
-  var foot=document.getElementById('tFoot');
-  if(!foot) return;
-  // 날짜별 시프트 카운트 집계
-  var cnt={};  // cnt[d] = {D,E,N,O,sr_by_sh}
-  for(var d=1;d<=nd;d++){
+// 4단계 잔여: 날짜별 통계 "계산"을 DOM과 분리한 순수함수.
+//   다병동 대시보드가 일자별 충원/미달을 DOM 없이 산출할 때 재사용. ctx 생략=현재.
+//   반환: { nd, perDay: { d: {D,E,N,O,srD,srE,srN, under:{D,E,N}} } }
+function computeDayStats(ctx){
+  ctx = ctx || currentCtx();
+  var y=ctx.year, m=ctx.month, ns=ctx.nurses||[], R=ctx.rules||RULES;
+  var nd=ndays(y,m), perDay={};
+  for(var d=1; d<=nd; d++){
     var c={D:0,E:0,N:0,O:0,srD:0,srE:0,srN:0};
-    nurses.forEach(function(n){
-      var s=schedule[key(n.id,d)];
+    ns.forEach(function(n){
+      var s=ScheduleStore.get(ctx.wardId, y, m, n.id, d);
       if(s==='D'){c.D++; if(isSenior(n))c.srD++;}
       else if(s==='E'){c.E++; if(isSenior(n))c.srE++;}
       else if(s==='N'){c.N++; if(isSenior(n))c.srN++;}
       else if(s==='O')c.O++;
     });
-    cnt[d]=c;
+    var wh=isWH(y,m,d);
+    c.under={};
+    ['D','E','N'].forEach(function(sh){
+      var st=R.staffingFor(sh, wh);
+      var total = sh==='D'?c.D : sh==='E'?c.E : c.N;
+      c.under[sh] = st ? (total < (st.min||0)) : false;
+    });
+    perDay[d]=c;
   }
-  // 최소인원 미달 판정 (해당 시프트의 인원이 기준 min 미만이면 경고색)
-  function under(d,sh){
-    var c=cnt[d];
-    var total = sh==='D'?c.D : sh==='E'?c.E : c.N;
-    var st = RULES.staffingFor(sh, isWH(cy,cm,d));   // {min,max,senior}
-    if(!st) return false;
-    return total < (st.min||0);
-  }
+  return { nd:nd, perDay:perDay };
+}
+
+function renderDayStats(){
+  var foot=document.getElementById('tFoot');
+  if(!foot) return;
+  var stats=computeDayStats();               // 현재 ctx
+  var nd=stats.nd, cnt=stats.perDay;
   function rowFor(label,shKey,cls){
     var tds='<td class="dsl '+cls+'">'+label+'</td>';
     for(var d=1;d<=nd;d++){
       var c=cnt[d];
       var v = shKey==='D'?c.D : shKey==='E'?c.E : shKey==='N'?c.N : c.O;
-      var u = (shKey!=='O' && under(d,shKey)) ? ' understaff' : '';
+      var u = (shKey!=='O' && c.under[shKey]) ? ' understaff' : '';
       tds+='<td class="'+cls+u+'"'+(u?' title="최소 인원 미달"':'')+'>'+v+'</td>';
     }
     return '<tr>'+tds+'</tr>';
@@ -5045,7 +5170,7 @@ function renderStats(cf, pvList){
     var w=dow(cy,cm,d);
     if(w===6)sat++;else if(w===0)sun++;else if(isH(cy,cm,d))hol++;
   }
-  var lastUpd=localStorage.getItem('dv6_hol_updated');
+  var lastUpd=CalendarStore.lastUpdated();
   var updStr=lastUpd?(' | 공휴일 최종갱신: '+lastUpd.slice(0,10)):'';
   document.getElementById('offInfo').textContent='이번 달 Off 할당량: '+offQ()+'일 (토 '+sat+'일 + 일 '+sun+'일 + 공휴일(평일) '+hol+'일) | 수간호사 제외 전원 동일'+updStr+' | v'+APP_VERSION;
 }
@@ -7715,39 +7840,78 @@ function importJSON(evt){
 var _saveStats = { lastOk: 0, lastErr: 0, errCount: 0, lastErrMsg: '' };
 
 // 단일 키 저장 + 검증 — 실패 시 에러 반환
-function _safeSet(key, value){
-  try{
-    localStorage.setItem(key, value);
-    // write-then-read: 직후 다시 읽어 일치 검증
-    var verify = localStorage.getItem(key);
-    if(verify !== value){
-      throw new Error('verify mismatch on '+key);
-    }
-    return null;
-  }catch(e){
-    return e;
+// ── Repository — 병동 데이터 저장소 추상화 (모듈화 5단계) ──────────────────
+// 목적: 병동 단위 데이터(nurses/schedule/locks/events/rules)의 영속화를 단일 인터페이스로.
+//   localStorage 직접 접근이 saveLocal/loadLocal에 흩어져 있던 것을 loadWard/saveWard로 수렴.
+//   서버 이식 = ApiRepository(fetch)만 추가하고 ACTIVE_REPO 교체. 호출부(saveLocal/loadLocal) 불변.
+// 인터페이스: loadWard(wardId)->{...} | saveWard(wardId,data)->bool | listWards()->[{id}]
+// 범위: "병동 데이터"만. UI 설정(dv6_kbd 등)·히스토리·offclosed는 병동묶음 밖이라 제외(과잉 회피).
+// 키 규칙: dataKey()와 동일 — WARD_ID==='default'면 base, 그 외 base_WARD_ID(기존 데이터 호환).
+var LocalRepository = (function(){
+  function K(base, wardId){ return (wardId==null || wardId==='default') ? base : base+'_'+wardId; }
+  var BUNDLE = ['dv6_n','dv6_i','dv6_s','dv6_evts','dv6_evtId','dv6_rules','dv6_locks'];
+  function _set(key,val){                              // write-then-read 검증 (구 _safeSet)
+    try{ localStorage.setItem(key,val); return localStorage.getItem(key)===val ? null : new Error('verify mismatch on '+key); }
+    catch(e){ return e; }
   }
+  return {
+    // 병동 데이터 묶음 로드 (없는 키는 undefined)
+    loadWard: function(wardId){
+      function g(b){ return localStorage.getItem(K(b,wardId)); }
+      return {
+        nurses:    g('dv6_n'),     nextId:   g('dv6_i'),
+        schedule:  g('dv6_s'),     events:   g('dv6_evts'),
+        nextEvtId: g('dv6_evtId'), rules:    g('dv6_rules'),
+        locks:     g('dv6_locks')
+      }; // 값은 raw 문자열(JSON) — 호출부가 파싱(인메모리 형태 결정권 유지)
+    },
+    // 병동 데이터 묶음 저장. data는 이미 직렬화된 문자열 맵. 첫 에러 반환(null=성공).
+    saveWard: function(wardId, data){
+      var firstErr=null;
+      var map={ dv6_n:data.nurses, dv6_i:data.nextId, dv6_s:data.schedule,
+                dv6_evts:data.events, dv6_evtId:data.nextEvtId,
+                dv6_rules:data.rules, dv6_locks:data.locks };
+      Object.keys(map).forEach(function(b){
+        if(map[b]===undefined) return;
+        var e=_set(K(b,wardId), map[b]); if(e && !firstErr) firstErr=e;
+      });
+      return firstErr;
+    },
+    // 저장된 병동 목록 (localStorage 키 스캔). 서버에선 SELECT id FROM ward.
+    listWards: function(){
+      var ids={'default':true};
+      for(var i=0;i<localStorage.length;i++){
+        var k=localStorage.key(i), m=k && k.match(/^dv6_n_(.+)$/);
+        if(m) ids[m[1]]=true;
+      }
+      return Object.keys(ids).map(function(id){ return {id:id}; });
+    }
+  };
+})();
+var ACTIVE_REPO = LocalRepository;                      // 서버 이식 시 ApiRepository로 교체
+
+function _safeSet(key, value){                          // 하위호환 별칭 (외부 잔존 호출 대비)
+  try{ localStorage.setItem(key, value);
+    if(localStorage.getItem(key)!==value) throw new Error('verify mismatch on '+key);
+    return null;
+  }catch(e){ return e; }
 }
 
 function saveLocal(silent){
-  var payload = {};
-  payload[dataKey('dv6_n')]     = JSON.stringify(nurses);
-  payload[dataKey('dv6_i')]     = String(nextId);
-  payload[dataKey('dv6_s')]     = JSON.stringify(schedule);
-  payload[dataKey('dv6_evts')]  = JSON.stringify(customEvents);
-  payload[dataKey('dv6_evtId')] = String(nextEvtId);
-  payload[dataKey('dv6_rules')] = JSON.stringify(RULES);
-  payload[dataKey('dv6_locks')] = JSON.stringify(lockedCells);
-  var firstErr = null;
-  for(var k in payload){
-    var err = _safeSet(k, payload[k]);
-    if(err && !firstErr) firstErr = err;
-  }
+  // 5단계: 현재 병동 어댑터 — 전역 상태를 직렬화해 Repository에 위임.
+  var firstErr = ACTIVE_REPO.saveWard(WARD_ID, {
+    nurses:    JSON.stringify(nurses),
+    nextId:    String(nextId),
+    schedule:  JSON.stringify(schedule),
+    events:    JSON.stringify(customEvents),
+    nextEvtId: String(nextEvtId),
+    rules:     JSON.stringify(RULES),
+    locks:     JSON.stringify(lockedCells)
+  });
   if(firstErr){
     _saveStats.lastErr   = Date.now();
     _saveStats.errCount++;
     _saveStats.lastErrMsg = firstErr.message || String(firstErr);
-    // 사용자가 인지해야 할 실패 — 5분에 한 번만 토스트
     if(!silent && (Date.now() - (_saveStats._lastToast||0) > 5*60*1000)){
       _saveStats._lastToast = Date.now();
       try{ showToast('⚠️ 자동 저장 실패 — 수동 저장(💾) 권장: '+_saveStats.lastErrMsg, 4000); }catch(_){}
@@ -7760,23 +7924,21 @@ function saveLocal(silent){
 }
 
 function loadLocal(){
+  // 5단계: 현재 병동 어댑터 — Repository에서 raw 로드 후 전역에 반영.
   try{
-    var n=localStorage.getItem(dataKey('dv6_n')),i=localStorage.getItem(dataKey('dv6_i')),s=localStorage.getItem(dataKey('dv6_s'));
-    var ev=localStorage.getItem(dataKey('dv6_evts')),ei=localStorage.getItem(dataKey('dv6_evtId'));
-    var lk=localStorage.getItem(dataKey('dv6_locks'));
-    if(n) nurses=JSON.parse(n);
-    if(i) nextId=parseInt(i);
-    if(s) schedule=JSON.parse(s);
-    if(ev) customEvents=JSON.parse(ev);
-    if(ei) nextEvtId=parseInt(ei);
-    if(lk) lockedCells=JSON.parse(lk);
-    // 구버전 키 정리
+    var w = ACTIVE_REPO.loadWard(WARD_ID);
+    if(w.nurses)    nurses=JSON.parse(w.nurses);
+    if(w.nextId)    nextId=parseInt(w.nextId);
+    if(w.schedule)  schedule=JSON.parse(w.schedule);
+    if(w.events)    customEvents=JSON.parse(w.events);
+    if(w.nextEvtId) nextEvtId=parseInt(w.nextEvtId);
+    if(w.locks)     lockedCells=JSON.parse(w.locks);
+    // 구버전 키 정리 (병동 데이터 아님 — 직접 처리)
     localStorage.removeItem('dv6_hol');
     localStorage.removeItem('dv6_holn');
-    localStorage.removeItem('dv6_snaps');  // v3.4: 구버전 히스토리 시스템 정리 (dv6_hist_<id>로 이관)
+    localStorage.removeItem('dv6_snaps');  // v3.4: 구버전 히스토리 정리
   }catch(e){ console.warn('loadLocal error:',e); }
   // 필드 마이그레이션 — 구버전 데이터 호환
-  // 기존 데이터에 manualOrder 부여 (없으면 직급+입사일 기준으로 초기화)
   var needsOrder=nurses.some(function(n){return typeof n.manualOrder!=='number';});
   if(needsOrder){
     var tmp=[...nurses].sort(function(a,b){
@@ -7785,7 +7947,6 @@ function loadLocal(){
     });
     tmp.forEach(function(n,i){n.manualOrder=i;});
   }
-  // v3.13: 간호사 필드 마이그레이션 일원화 — migrateNurse 헬퍼 (defaultAttributes 기준)
   nurses.forEach(function(n){ migrateNurse(n); });
 }
 
