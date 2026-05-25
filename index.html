@@ -1493,7 +1493,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.29';
+const APP_VERSION = '3.16.31';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -2954,6 +2954,7 @@ function defaultAttributes(){
     nightDedicated:false,  // 야간전담 — 야간만 배치
     nightExempt:false,     // 야간 면제 (건강상 사유 등)
     fixedShift:null,       // 고정 근무 'D'|'E'|'N'|null (사이클 근무자)
+    floating:false,        // v3.16.31: 플로팅(유연 인력) — 어느 시프트든 가능, 막힌 슬롯 우선 투입, 일부 소프트제약 면제
     repeatPattern:null,    // v3.15: 반복 근무 패턴 {seq:['N','N','N','O','O'], anchor:1} | null
     preceptorOf:[],        // 이 간호사가 멘토하는 프리셉티 ID 배열
     targetOffOverride:null,// off 정량 수동조정 (null=자동, 숫자=덮어쓰기)
@@ -4323,10 +4324,11 @@ function autoFill(){
   //   반환: true (항상 성공 — 멈추지 않음).
   function _runBacktrack(nd, R, lockedBackup){
     var ids = nurses.map(function(n){return n.id;});
-    var attrOf={},roleOf={},isSr={},isNew={},prefsOf={},nurseById={};
+    var attrOf={},roleOf={},isSr={},isNew={},prefsOf={},nurseById={},isFloat={};
     nurses.forEach(function(n){attrOf[n.id]=n.attributes||{};roleOf[n.id]=n.role;
       isSr[n.id]=(n.role==='주임'||n.role==='차지'); isNew[n.id]=(n.role==='신규간호사');
-      prefsOf[n.id]=(n.prefs&&n.prefs.shift)||{D:0,E:0,N:0}; nurseById[n.id]=n;});
+      prefsOf[n.id]=(n.prefs&&n.prefs.shift)||{D:0,E:0,N:0}; nurseById[n.id]=n;
+      isFloat[n.id]=!!(n.attributes&&n.attributes.floating);});
     var newNightCnt={}; ids.forEach(function(id){newNightCnt[id]=0;});  // 신규 월 야간 누적
     var head=nurses.find(function(n){return n.role==='수간호사';});
     var FP=R.forbiddenPatterns, NR=R.nightRules;
@@ -4358,10 +4360,12 @@ function autoFill(){
     var mentorOf={}; nurses.forEach(function(m){var po=(m.attributes&&m.attributes.preceptorOf)||[];po.forEach(function(nid){mentorOf[nid]=m.id;});});
     // 정렬 점수: 작을수록 우선. off부족(근무필요) + 시프트 편중 페널티(한 시프트 독식 방지) + 프리셉터 보너스
     function shiftPenalty(id,d,sh){
+      var a=attrOf[id]||{};
+      // v3.16.31: 플로팅은 시프트 편중·연속성 페널티 면제 — 어디든 유연 투입.
+      if(a.floating){ if(sh==='N'&&a.nightDedicated)return -100; if(a.fixedShift===sh)return -8; return 0; }
       var c=shiftCnt[id]||{D:0,E:0,N:0};
       var avg=(c.D+c.E+c.N)/3;
       var pen=(c[sh]-avg)*0.8;
-      var a=attrOf[id]||{};
       if(sh==='N' && a.nightDedicated){ pen=-100; }
       else if(a.fixedShift===sh){ pen-=8; }
       // v3.16.29: 시프트 연속성(블록 근무) — 어제와 같은 시프트면 보너스(생활리듬 유지 → 피로↓, 잦은 전환 방지).
@@ -4465,9 +4469,15 @@ function autoFill(){
           var hasSrN=(sh==='N')&&ids.some(function(id){return grid[id][d]==='N'&&isSr[id];});
           var pool=ids.filter(function(id){return grid[id][d]===undefined&&roleOf[id]!=='수간호사'&&canWork(id,d,sh);});
           if(sh==='N'&&!hasSrN){var p2=pool.filter(function(id){return !isNew[id];}); if(p2.length)pool=p2;}
-          if(!pool.length)break; pool.sort(function(a,bb){return scoreMin(a,d,sh)-scoreMin(bb,d,sh);}); place(pool[0],d,sh); }
+          if(!pool.length){
+            // v3.16.31: 막힘 — 플로팅(유연 인력)을 마지막 후보로 투입해 min 미달 방지.
+            //   일반 후보가 canWork를 통과 못한 경우에도, 플로팅은 우선 투입(단 하드 안전제약 canWork는 지킴).
+            var fpool=ids.filter(function(id){return grid[id][d]===undefined&&isFloat[id]&&roleOf[id]!=='수간호사'&&canWork(id,d,sh);});
+            if(!fpool.length)break;
+            fpool.sort(function(a,bb){return scoreMin(a,d,sh)-scoreMin(bb,d,sh);}); place(fpool[0],d,sh); continue;
+          }
+          pool.sort(function(a,bb){return scoreMin(a,d,sh)-scoreMin(bb,d,sh);}); place(pool[0],d,sh); }
       });
-      // ── 단계 4: off균등 후처리 (max까지, 페이스 안 앞선 사람) ──
       SHIFTS.forEach(function(sh){
         for(var k=curCnt(d,sh);k<need[sh].max;k++){
           var pool=ids.filter(function(id){return grid[id][d]===undefined&&roleOf[id]!=='수간호사'&&canWork(id,d,sh)&&paceDeficit(id,d)<0.5;});
@@ -5460,7 +5470,9 @@ function renderWarnSummary(cf, pvList){
   var total=cfShow.length+pvList.length;
   if(total===0){
     box.className='warn-summary ok';
-    box.innerHTML='<span class="ws-ico">✓</span><span class="ws-title">검토가 필요한 항목 없음 — 모든 규칙 충족</span>';
+    box.innerHTML='<div style="display:flex;align-items:center;gap:7px"><span class="ws-ico">✓</span><span class="ws-title">검토가 필요한 항목 없음 — 모든 규칙 충족</span></div>'
+      +'<div style="margin-top:6px;text-align:right"><button onclick="reportBadSchedule()" title="경고는 없어도 배치가 어색하면 익명 신고로 개선에 기여할 수 있습니다" '
+      +'style="font-size:10px;padding:3px 9px;border-radius:11px;border:0.5px solid #B6E2CD;background:var(--bg);color:#1F8A5E;cursor:pointer;font-family:inherit;font-weight:600">😕 그래도 배치가 어색해요 — 익명 신고</button></div>';
     return;
   }
   box.className='warn-summary has';
@@ -5500,7 +5512,11 @@ function renderWarnSummary(cf, pvList){
     '<div class="ws-head"><span class="ws-ico">⚠️</span><b>검토가 필요한 항목 '+total+'건 ('+items.length+'종)</b>'
     +'<button class="ws-detail" onclick="showWarn()">상세보기 ▸</button></div>'
     +'<ul class="ws-list">'+rows+'</ul>'
-    +(more>0?'<div class="ws-more" onclick="showWarn()">외 '+more+'종 더보기…</div>':'');
+    +(more>0?'<div class="ws-more" onclick="showWarn()">외 '+more+'종 더보기…</div>':'')
+    +'<div style="margin-top:7px;padding-top:6px;border-top:0.5px solid #F0CACA;text-align:right">'
+    +'<button onclick="reportBadSchedule()" title="이 배치 결과를 익명으로 신고해 알고리즘 개선에 기여합니다" '
+    +'style="font-size:10px;padding:3px 9px;border-radius:11px;border:0.5px solid #C9C2D8;background:var(--bg);color:var(--text2);cursor:pointer;font-family:inherit;font-weight:600">😕 이 배치가 별로예요 — 익명 신고</button>'
+    +'</div>';
 }
 // HTML 이스케이프 (요약 메시지 안전 출력)
 function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -6210,6 +6226,81 @@ function setFbStar(n){
   });
 }
 
+// v3.16.30: 자동배치 결과 불만족 신고 — 재현 가능한 익명 스냅샷을 피드백으로 전송.
+//   목적: 실사용 불만 데이터를 모아 알고리즘 개선(가상 데이터 과적합 회피).
+//   개인정보 보호: 이름은 익명화(간호사1,2,...), 메모·생일 등 식별정보 제외. 역할·속성·듀티표만.
+function buildScheduleSnapshot(){
+  var nd = ndays(cy,cm);
+  // 이름 익명화 매핑
+  var anon = {}; nurses.forEach(function(n,i){ anon[n.id] = '간호사'+(i+1); });
+  var snapNurses = nurses.map(function(n,i){
+    var a = n.attributes || {};
+    return {
+      id: i+1, role: n.role,
+      attr: {
+        pregnant: !!a.pregnant, nightDedicated: !!a.nightDedicated,
+        nightExempt: !!a.nightExempt, fixedShift: a.fixedShift || null,
+        floating: !!a.floating,
+        isPreceptor: !!(a.preceptorOf && a.preceptorOf.length)
+      },
+      prefs: (n.prefs && n.prefs.shift) ? n.prefs.shift : {D:0,E:0,N:0},
+      targetOff: (n.role==='수간호사') ? null : (typeof offQ==='function' ? offQ(n.id) : null),
+      // 듀티 1줄 (D/E/N/O/V/locked표시)
+      duty: (function(){ var s=''; for(var d=1;d<=nd;d++){ var c=schedule[key(n.id,d)]||'-'; var lk=isLocked(n.id,d)?'*':''; s+=c+lk; } return s; })()
+    };
+  });
+  var cf = conflicts();
+  var byType = {}; cf.forEach(function(c){ byType[c.type]=(byType[c.type]||0)+1; });
+  var sum = computeWardSummary();
+  return {
+    version: APP_VERSION,
+    engine: RULES.engine,
+    hardForbid: !!RULES.forbiddenPatterns.hardForbid,
+    year: cy, month: cm+1, days: nd,
+    nurseCount: nurses.length,
+    staffing: RULES.staffing,
+    forbiddenPatterns: RULES.forbiddenPatterns,
+    nightRules: RULES.nightRules,
+    newNurseRules: RULES.newNurse,
+    summary: { totalWarnings: cf.length, byType: byType, offDeviation: sum.offDeviation, fillRate: sum.fillRate, understaffedDays: sum.understaffedDays },
+    nurses: snapNurses,
+    timestamp: new Date().toISOString()
+  };
+}
+
+function reportBadSchedule(){
+  var snap = buildScheduleSnapshot();
+  // 무엇이 불만인지 사용자가 한 줄 적게(선택)
+  var reason = window.prompt('이 배치의 어떤 점이 별로인가요? (한 줄, 선택)\n예: "하단 간호사 근무가 후반에 몰림", "OFF 분배 불공평"', '');
+  if(reason===null) return;  // 취소
+  var snapStr = JSON.stringify(snap);
+  // 너무 크면 Formspree 거부 가능 → duty표는 유지하되 길이 체크
+  var payload = {
+    category: 'schedule-report',
+    content: '[자동배치 불만족 신고] ' + (reason || '(사유 미입력)'),
+    _subject: '[Duty Scheduler] 😕 배치 불만족 신고 (' + snap.engine + ', ' + snap.nurseCount + '명, 경고' + snap.summary.totalWarnings + ')',
+    snapshot: snapStr
+  };
+  var configured = FORMSPREE_ENDPOINT.indexOf('REPLACE_WITH') < 0;
+  if(!configured){
+    // mailto fallback — 스냅샷은 클립보드에 복사하고 메일 본문엔 사유만
+    if(navigator.clipboard) navigator.clipboard.writeText(snapStr).catch(function(){});
+    var url = 'mailto:' + FEEDBACK_EMAIL + '?subject=' + encodeURIComponent(payload._subject)
+      + '&body=' + encodeURIComponent((reason||'') + '\n\n[스냅샷이 클립보드에 복사되었습니다. 메일에 붙여넣기(Ctrl+V) 해주세요]');
+    showToast('스냅샷 복사됨 · 메일 앱에서 붙여넣기 해주세요', 3500);
+    setTimeout(function(){ window.location.href = url; }, 400);
+    return;
+  }
+  showToast('전송 중...', 1500);
+  fetch(FORMSPREE_ENDPOINT, {
+    method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'},
+    body: JSON.stringify(payload)
+  }).then(function(res){
+    if(res.ok) showToast('신고 감사합니다! 개선에 반영하겠습니다 🙏', 3500);
+    else showToast('전송 실패 — 잠시 후 다시 시도해주세요', 3000);
+  }).catch(function(){ showToast('전송 실패 — 네트워크를 확인해주세요', 3000); });
+}
+
 // 피드백 전송 — Formspree 연동 + 이메일 fallback
 // 배포 전 FORMSPREE_ENDPOINT를 본인 엔드포인트로 교체할 것 (선택사항)
 // 가입: https://formspree.io (무료 월 50건)
@@ -6601,6 +6692,7 @@ function renderAttrUI(n){
     +chip('pregnant',      '🤰 임산부',     '#C0392B', '임산부 — 야간 금지, 동시 배치 회피')
     +chip('nightDedicated','🌙 야간전담',   '#7C5FD3', '야간전담 간호사 — 야간만 배치')
     +chip('nightExempt',   '🚫 야간면제',   '#C0781A', '건강상 사유 등으로 야간 면제')
+    +chip('floating',      '🃏 플로팅',     '#2E8B8B', '플로팅(유연 인력) — 어느 시프트든 배치, 인력 빈 슬롯 우선 투입. 베테랑·파트타임 등 유연 근무자에 사용')
     +'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center">'
     +'<span style="font-size:10px;color:var(--text3);margin-right:3px">고정 근무:</span>'
