@@ -1493,7 +1493,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.20';
+const APP_VERSION = '3.16.21';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -3719,6 +3719,20 @@ var ADVICE_OF_TYPE = {
 };
 function adviceFor(type){ return ADVICE_OF_TYPE[type] || '규칙설정에서 해당 항목을 확인하세요.'; }
 
+// v3.16.21: 위반 유형 짧은 라벨 — 경고 요약에서 유형별 집계 표시용("이브→데이(ED) 5건").
+var TYPE_LABEL = {
+  'pattern-NOD':'나이트→오프→데이(NOD)', 'pattern-EOD':'이브→오프→데이(EOD)',
+  'pattern-NON':'나이트→오프→나이트(NON)', 'pattern-NOE':'나이트→오프→이브(NOE)',
+  'pattern-ND':'나이트→데이(ND)', 'pattern-NE':'나이트→이브(NE)', 'pattern-ED':'이브→데이(ED)',
+  'pattern-NNNN':'야간 4연속(NNNN)',
+  'night-consecMax':'야간 연속 초과', 'night-monthMax':'월 야간 한도 초과', 'night-backward':'역방향 교대',
+  'consec-work':'연속근무 초과', 'consec-night':'야간 연속', 'consec-noOffAfterNight':'야간 후 휴식 부족', 'consec-nightToEve':'야간→이브',
+  'staffing':'인력 미달/초과',
+  'newNurse-noNightAlone':'신규 단독야간', 'newNurse-consecNight':'신규 연속야간', 'newNurse-noSenior':'신규 선임동반 없음', 'newNurse-nightLimit':'신규 월야간 한도',
+  'attr-pregnantNight':'임산부 야간', 'attr-pregnantSame':'임산부 동시배치', 'attr-nightOnly':'야간전담 D/E', 'attr-exempt':'야간면제자 야간', 'attr-preceptorPair':'프리셉터 페어 깨짐'
+};
+function typeLabel(type){ return TYPE_LABEL[type] || type; }
+
 // ════════════════════════════════════════════════════════════════════════
 // v3.12: 🧪 실험기능: 대안 셀 추천 (Alt+클릭 → 패널 → 즉시 적용 → 되돌리기)
 // 토글 OFF면 어떤 함수도 호출되지 않아 성능 영향 0.
@@ -4388,15 +4402,16 @@ function autoFill(){
       var ppCode = (d>2) ? (schedule[key(n.id,d-2)]||'') : '';
       var pIsOff = (pCode===''||pCode==='O'||pCode==='V');
       // 2일 패턴
-      if(FP2.ND && pCode==='N' && sh==='D') w*=0.05;
-      if(FP2.NE && pCode==='N' && sh==='E') w*=0.05;
-      if(FP2.ED && pCode==='E' && sh==='D') w*=0.1;
+      // 2일 패턴 — v3.16.21: 가중치 강화(ED/EOD가 약해 위반 다발 → 조임). 단 인력부족 시엔 불가피하게 발생 가능.
+      if(FP2.ND && pCode==='N' && sh==='D') w*=0.01;
+      if(FP2.NE && pCode==='N' && sh==='E') w*=0.01;
+      if(FP2.ED && pCode==='E' && sh==='D') w*=0.02;
       // 3일 패턴 (가운데가 Off)
       if(pIsOff && d>2){
-        if(FP2.NOD && ppCode==='N' && sh==='D') w*=0.05;
-        if(FP2.EOD && ppCode==='E' && sh==='D') w*=0.1;
-        if(FP2.NON && ppCode==='N' && sh==='N') w*=0.15;
-        if(FP2.NOE && ppCode==='N' && sh==='E') w*=0.15;
+        if(FP2.NOD && ppCode==='N' && sh==='D') w*=0.005;
+        if(FP2.EOD && ppCode==='E' && sh==='D') w*=0.02;
+        if(FP2.NON && ppCode==='N' && sh==='N') w*=0.08;
+        if(FP2.NOE && ppCode==='N' && sh==='E') w*=0.08;
       }
       // NNNN: 직전 3일이 모두 N인데 또 N
       if(FP2.NNNN && sh==='N' && d>3){
@@ -5264,26 +5279,34 @@ function renderWarnSummary(cf, pvList){
     L3:{txt:'점검', cls:'p'},    // 공정성·인력 — 보라
     L4:{txt:'선호', cls:'g'}     // 선호 — 회색
   };
-  var items=[];
-  cfShow.forEach(function(c){
-    var L=_layerOf(c);
-    items.push({msg:c.msg||(c.d+'일 '+c.sh), tag:TIER_TAG[L]||TIER_TAG.L3, rank:TIER_RANK[L]!==undefined?TIER_RANK[L]:2, d:c.d||0});
-  });
-  pvList.forEach(function(v){
-    items.push({msg:v.msg||'선호 위반', tag:TIER_TAG.L4, rank:TIER_RANK.L4, d:v.d||0});
-  });
-  // 룰 점수(등급) 우선, 같으면 날짜순
-  items.sort(function(a,b){ return (a.rank-b.rank) || (a.d-b.d); });
-  var show=items.slice(0,8);   // 2열 × 4행 = 8건 노출
-  var more=total-show.length;
-  var rows=show.map(function(it){
-    return '<li><span class="ws-msg">'+_esc(it.msg)+'</span> <span class="ws-tag ws-'+it.tag.cls+'">'+it.tag.txt+'</span></li>';
+  // v3.16.21: 같은 유형 위반은 한 줄로 집계(예: "이브→데이(ED) 5건") → 패턴 위반 폭주 정리.
+  //   유형별로 묶어 건수·대표날짜를 모으고, 계층(rank)으로 정렬. 단발(1건)도 라벨로 통일 표시.
+  var groups={};   // type -> {label, tag, rank, count, days:[]}
+  function addGroup(type, L, d){
+    var g=groups[type];
+    if(!g){ g=groups[type]={ label:typeLabel(type), tag:TIER_TAG[L]||TIER_TAG.L3, rank:TIER_RANK[L]!==undefined?TIER_RANK[L]:2, count:0, days:[] }; }
+    g.count++; if(d>0 && g.days.length<6) g.days.push(d);
+  }
+  cfShow.forEach(function(c){ addGroup(c.type||'기타', _layerOf(c), c.d||0); });
+  if(pvList.length) { for(var i=0;i<pvList.length;i++){ addGroup('pref-'+(pvList[i].type||'shift'), 'L4', pvList[i].d||0); } }
+  // pref 그룹 라벨 보정
+  Object.keys(groups).forEach(function(k){ if(k.indexOf('pref-')===0 && !TYPE_LABEL[k.slice(5)]) groups[k].label='선호 위반'; });
+
+  var items=Object.keys(groups).map(function(k){ return groups[k]; });
+  items.sort(function(a,b){ return (a.rank-b.rank) || (b.count-a.count); });  // 계층 우선, 같으면 건수 많은 순
+  var show=items.slice(0,8);
+  var more=items.length-show.length;
+  var rows=show.map(function(g){
+    var dayHint = g.days.length ? ' <span style="font-size:9px;color:var(--text3)">('+g.days.slice(0,4).join(',')+(g.days.length>4?'…':'')+'일)</span>' : '';
+    return '<li><span class="ws-msg">'+_esc(g.label)
+      +(g.count>1?' <b style="color:#A32D2D">'+g.count+'건</b>':'')+dayHint+'</span> '
+      +'<span class="ws-tag ws-'+g.tag.cls+'">'+g.tag.txt+'</span></li>';
   }).join('');
   box.innerHTML=
-    '<div class="ws-head"><span class="ws-ico">⚠️</span><b>검토가 필요한 항목 '+total+'건</b>'
+    '<div class="ws-head"><span class="ws-ico">⚠️</span><b>검토가 필요한 항목 '+total+'건 ('+items.length+'종)</b>'
     +'<button class="ws-detail" onclick="showWarn()">상세보기 ▸</button></div>'
     +'<ul class="ws-list">'+rows+'</ul>'
-    +(more>0?'<div class="ws-more" onclick="showWarn()">외 '+more+'건 더보기…</div>':'');
+    +(more>0?'<div class="ws-more" onclick="showWarn()">외 '+more+'종 더보기…</div>':'');
 }
 // HTML 이스케이프 (요약 메시지 안전 출력)
 function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
