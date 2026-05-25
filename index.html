@@ -1491,7 +1491,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.14';
+const APP_VERSION = '3.16.15';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -2079,6 +2079,7 @@ function buildReportData(ctx){
       weekendWork:0, // 토/일/공휴일 근무(D/E/N) 횟수
       vacUsed:cntVacYear(n.id,cy),
       vacRemain:remVac(n),
+      vacTotal:(n.vacTotal||0),
       offUsed:cntOff(n.id),
       offQuota:n.role==='수간호사'?null:offQ(n.id, ctx),  // v3.11: 사람별(이월 포함)
       offBase:n.role==='수간호사'?null:offBase(),     // 이월 제외 기본
@@ -2128,6 +2129,10 @@ function renderReport(){
   var pct=total?Math.round(filled/total*100):0;
 
   var html='<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">';
+  // v3.16.15: 총원 카드 (규칙설정 외엔 인원수 확인처가 없던 문제 해결)
+  html+='<div style="flex:1;min-width:70px;background:#EAF1FB;border-radius:var(--r);padding:8px 10px;text-align:center" title="이 병동 전체 간호사 수">'
+    +'<div style="font-size:18px;font-weight:700;color:#1E6DBF">'+rows.length+'명</div>'
+    +'<div style="font-size:10px;color:var(--text3)">👥 총원</div></div>';
   [{k:'D',l:'Day'},{k:'E',l:'Eve'},{k:'N',l:'Night'},{k:'O',l:'Off'},{k:'V',l:'연차'},{k:'B',l:'경조'}].forEach(function(s){
     html+='<div style="flex:1;min-width:70px;background:var(--bg2);border-radius:var(--r);padding:8px 10px;text-align:center">'
       +'<div style="font-size:18px;font-weight:700;color:'+SHIFT_COLORS[s.k]+'">'+tot[s.k]+'</div>'
@@ -2159,7 +2164,7 @@ function renderReport(){
     +'<col style="width:38px">'      // 주말
     +'<col style="width:46px">'      // Off 실제/목표
     +'<col style="width:36px">'      // 이월
-    +'<col style="width:42px">'      // 잔여
+    +'<col style="width:58px">'      // 연차 잔여(소진율)
     +'<col style="width:42px">'      // 균형
     +'<col style="width:42px">'      // 피로도
     +'<col style="width:36px">'      // 미배치
@@ -2175,7 +2180,7 @@ function renderReport(){
     +'<th style="padding:6px 2px;text-align:center;border-bottom:0.5px solid var(--bd2)">주말</th>'
     +'<th style="padding:6px 2px;text-align:center;border-bottom:0.5px solid var(--bd2);font-size:9px">Off<br><span style="font-size:8px;color:var(--text3)">실/목표</span></th>'
     +'<th style="padding:6px 2px;text-align:center;border-bottom:0.5px solid var(--bd2);color:#C2185B">이월</th>'
-    +'<th style="padding:6px 2px;text-align:center;border-bottom:0.5px solid var(--bd2)">잔여</th>'
+    +'<th style="padding:6px 2px;text-align:center;border-bottom:0.5px solid var(--bd2);font-size:9px;color:#C0781A">연차<br><span style="font-size:8px;color:var(--text3)">잔여(소진율)</span></th>'
     +'<th style="padding:6px 2px;text-align:center;border-bottom:0.5px solid var(--bd2)">균형</th>'
     +'<th style="padding:6px 2px;text-align:center;border-bottom:0.5px solid var(--bd2)">🔋</th>'
     +'<th style="padding:6px 2px;text-align:center;border-bottom:0.5px solid var(--bd2)">미배</th>'
@@ -2207,6 +2212,7 @@ function renderReport(){
         +(r.offCarry!==null&&r.offCarry!==0?(r.offCarry>0?'+'+r.offCarry:r.offCarry):'—')+'</td>'
       +'<td style="text-align:center;padding:5px 2px;border-bottom:0.5px solid var(--bd)">'
         +'<span style="padding:1px 4px;border-radius:8px;background:'+(r.vacRemain<=0?'#FCEBEB':r.vacRemain<=3?'#FAEEDA':'#EAF3DE')+';color:'+(r.vacRemain<=0?'#791F1F':r.vacRemain<=3?'#633806':'#27500A')+';font-weight:600;font-size:10px">'+r.vacRemain+'</span>'
+        +(r.vacTotal>0?'<div style="font-size:8px;color:var(--text3);margin-top:1px">'+Math.round(r.vacUsed/r.vacTotal*100)+'% 소진</div>':'')
       +'</td>'
       +'<td style="text-align:center;padding:5px 2px;border-bottom:0.5px solid var(--bd)">'
         +'<span style="padding:1px 4px;border-radius:8px;background:'+bBg+';color:'+bColor+';font-weight:700;font-size:9px">'+bScore+'</span>'
@@ -4909,7 +4915,7 @@ function render(){
   for(var d=1;d<=nd;d++) cg+='<col style="width:30px;min-width:30px;max-width:30px">';
   cg+='</colgroup>';
 
-  var hh='<tr><th class="nc">간호사</th>';
+  var hh='<tr><th class="nc">간호사 <span style="font-weight:400;color:var(--text3);font-size:10px">('+nurses.length+'명)</span></th>';
   for(var d=1;d<=nd;d++){
     var w=dow(cy,cm,d);var h=isH(cy,cm,d);
     var cls=w===6?'sat':(w===0||h?'sun':'');
@@ -5139,13 +5145,16 @@ function renderStats(cf, pvList){
     return t;
   }
   var tgtD=monthTarget('D'), tgtE=monthTarget('E'), tgtN=monthTarget('N');
+  // v3.16.15: Off 월 목표 = 사람별 target_off(offQ) 합 (수간호사 제외 — 통계 관행)
+  var tgtO=0;
+  nurses.forEach(function(n){ if(n.role!=='수간호사') tgtO+=offQ(n.id); });
 
   // 목표 대비 진행 바가 있는 통계 카드
   function statCard(label, val, color, code, tgt){
     var bar='';
     if(tgt){
       var p=Math.min(100, Math.round(val/tgt*100));
-      var barCol = val>=tgt ? color : '#E2941C';  // 목표 미달이면 주황 경고색
+      var barCol = (code==='O') ? color : (val>=tgt ? color : '#E2941C');  // Off는 미달 경고 안 함(이월로 회수)
       bar='<div class="stbar"><div class="stbar-fill" style="width:'+p+'%;background:'+barCol+'"></div></div>'
         +'<div class="sttgt">월 목표 '+tgt+'명</div>';
     }
@@ -5158,7 +5167,7 @@ function renderStats(cf, pvList){
     statCard('Day', D, 'var(--sh-d)', 'D', tgtD)
     +statCard('Eve', E, 'var(--sh-e)', 'E', tgtE)
     +statCard('Night', N, 'var(--sh-n)', 'N', tgtN)
-    +statCard('Off', O, 'var(--sh-o)', 'O', 0)
+    +statCard('Off', O, 'var(--sh-o)', 'O', tgtO)
     +'<div class="stc stc-narrow" onclick="showStat(\'V\')"><div class="stl" style="color:var(--orange)">연차</div><div class="stn" style="color:var(--orange)">'+V+'<span style="font-size:11px;font-weight:600">명</span></div></div>'
     +'<div class="stc stc-narrow"><div class="stl">완료율</div><div class="stn">'+pct+'%</div></div>';
 
