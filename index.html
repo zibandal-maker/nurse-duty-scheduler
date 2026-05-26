@@ -70,6 +70,41 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;font-size:13px;
 /* v3.15.10: 통계카드+경고는 공간 부족 시 먼저 양보(shrink 허용 + 자체 스크롤). off-info는 고정. */
 .stat-warn-wrap{flex:0 1 auto;min-height:0;overflow-y:auto;}
 .cal-area > .off-info{flex-shrink:0;}
+/* v3.16.32: 와이드 화면(≥1280px)에서 통계·경고를 듀티표 우측 컬럼으로 — 빈 우측 공간 활용, 세로 스크롤 감소.
+   좁은 화면에선 기존처럼 듀티표 아래 세로 배치(아래 미디어쿼리 미적용 시 기본 동작 유지). */
+@media(min-width:1280px){
+  .cal-area.wide-split{
+    display:grid;
+    grid-template-columns: minmax(0,1fr) 340px;   /* 좌: 듀티표(가변) · 우: 통계/경고(고정) */
+    grid-template-rows: auto minmax(0,1fr) auto;   /* table 행은 minmax(0,1fr) — 넘치면 늘지 않고 내부 스크롤 */
+    grid-template-areas:
+      "banner banner"
+      "table  side"
+      "offinfo side";
+    column-gap:14px;
+    align-items:stretch;          /* 행 높이에 맞게 늘림(스크롤 컨테이너가 높이를 가져야 함) */
+    min-height:0; overflow:hidden; /* cal-area가 화면 높이에 묶이도록(부모 body-wrap flex:1) */
+  }
+  .cal-area.wide-split > #demoBanner{ grid-area:banner; }
+  .cal-area.wide-split > .tbl-scroll{
+    grid-area:table;
+    min-height:0;                  /* grid 아이템 기본 min-height:auto → 0으로 해야 내부 스크롤 작동 */
+    overflow:auto;                 /* 표가 행 높이를 넘으면 세로 스크롤 */
+    height:100%;
+  }
+  .cal-area.wide-split > .off-info{ grid-area:offinfo; }
+  .cal-area.wide-split > .stat-warn-wrap{
+    grid-area:side;
+    flex-direction:column;          /* 통계·경고를 세로로 쌓음 */
+    overflow-y:auto;
+    min-height:0; height:100%;      /* 우측도 행 높이 안에서 자체 스크롤 */
+    margin-top:0;
+  }
+  .cal-area.wide-split > .stat-warn-wrap .stats-row{
+    flex:0 0 auto;                  /* 우측 컬럼에선 통계가 폭 52% 분할 대신 전체폭 */
+    width:100%;
+  }
+}
 
 .btn{background:none;border:0.5px solid var(--bd2);border-radius:var(--r);padding:4px 9px;cursor:pointer;font-size:11px;color:var(--text);display:inline-flex;align-items:center;gap:3px;white-space:nowrap;font-family:inherit;}
 .btn:hover{background:var(--bg2);}
@@ -1493,7 +1528,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.31';
+const APP_VERSION = '3.16.34';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -5316,6 +5351,7 @@ function render(){
   document.getElementById('tBody').innerHTML=tb;
   renderStats(cf, _pvList);
   renderDayStats();
+  updateWideSplit();  // v3.16.32: 와이드 레이아웃 토글
   applyKbFocus();  // v3.14: 키보드 포커스 셀 표시 복원 (render로 DOM 새로 그려졌으므로)
   if(document.getElementById('sPanel').classList.contains('open')) renderCards();
   // v3.7: 원티드 모드 UI 상태 동기화 (카운트 갱신 포함)
@@ -5465,8 +5501,9 @@ function renderWarnSummary(cf, pvList){
   var box=document.getElementById('warnSummary');
   if(!box) return;
   cf=cf||[]; pvList=pvList||[];
-  // v3.14: 경고 요약 박스는 "배치상의 문제"만. off-balance(d=0, 비-배치성)는 제외.
-  var cfShow=cf.filter(function(c){ return c.type!=='off-balance' && c.d>0; });
+  // v3.14: 경고 요약 박스는 "배치상의 문제"만. off-balance(비-배치성 공정성 지표)는 제외.
+  // v3.16.34: d=0(월간 한도 등) 항목도 포함 — 상세보기와 카운트·종류 일치(이전엔 d>0만 세어 불일치).
+  var cfShow=cf.filter(function(c){ return c.type!=='off-balance'; });
   var total=cfShow.length+pvList.length;
   if(total===0){
     box.className='warn-summary ok';
@@ -5523,7 +5560,8 @@ function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 
 function showWarn(){
   var cf=conflicts();
-  if(!cf.length){showToast('배치 경고 없음');return;}
+  var pvList=checkPrefViolations();  // v3.16.34: 선호 위반도 상세보기에 포함(요약과 종류 일치)
+  if(!cf.length && !pvList.length){showToast('배치 경고 없음');return;}
   var sc={D:'#2EA875',E:'#E8607E',N:'#7C5FD3'};
   var TYPE_ICON={
     'staffing':'👥','newNurse-noNightAlone':'🔰','newNurse-consecNight':'🔰',
@@ -5598,6 +5636,15 @@ function showWarn(){
       return '<div class="wrow">'
         +'<span class="wtag" style="background:#4A2E8A">'+(ci.d>0?ci.d+'일':'월간')+'</span>'
         +'<span style="font-size:11px;color:var(--text2)">'+(ci.msg||ci.type)+'</span></div>';
+    }).join('');
+  }
+  // v3.16.34: 선호 위반 섹션 — 요약 박스와 종류·건수 일치(이전엔 상세보기에서 누락됨)
+  if(pvList.length){
+    html+='<div style="font-size:10px;font-weight:700;color:#9A6A1A;margin:10px 0 4px">💛 선호 위반 ('+pvList.length+')</div>';
+    html+=pvList.slice().sort(function(a,b){return (a.d||0)-(b.d||0);}).map(function(vi){
+      return '<div class="wrow">'
+        +'<span class="wtag" style="background:#E67E22">'+(vi.d>0?vi.d+'일':'월간')+'</span>'
+        +'<span style="font-size:11px;color:var(--text2)">'+(vi.msg||vi.type)+'</span></div>';
     }).join('');
   }
   document.getElementById('warnList').innerHTML=html;
@@ -7891,6 +7938,16 @@ function togglePanel(){
   var p=document.getElementById('sPanel');
   p.classList.toggle('open');
   if(p.classList.contains('open')){renderCards();renderAddCG();setTimeout(initMemoHeights,30);}
+  updateWideSplit();
+}
+
+// v3.16.32: 와이드 화면에서 통계·경고를 듀티표 우측 컬럼으로 보내는 레이아웃 토글.
+//   조건: 창 폭 ≥1280px AND 사이드패널 닫힘(열리면 가로 공간 부족 → 기존 하단 배치).
+function updateWideSplit(){
+  var cal=document.querySelector('.cal-area'); if(!cal) return;
+  var panelOpen=document.getElementById('sPanel').classList.contains('open');
+  var wide=window.innerWidth>=1280 && !panelOpen;
+  cal.classList.toggle('wide-split', wide);
 }
 
 // v3.13: 탑바 더보기 메뉴
@@ -8505,6 +8562,8 @@ setInterval(function(){ saveLocal(false); }, 30000);
 
 // 페이지 종료 시 동기 저장 — 실패 시 알림은 의미 없으므로 silent
 window.addEventListener('beforeunload', function(){ saveLocal(true); });
+// v3.16.32: 창 크기 변경 시 와이드 레이아웃 재평가 (디바운스)
+var _wsTimer; window.addEventListener('resize', function(){ clearTimeout(_wsTimer); _wsTimer=setTimeout(function(){ if(typeof updateWideSplit==='function') updateWideSplit(); }, 150); });
 
 // ── 앱 시작 ───────────────────────────────────────────────────────────
 // 단일병동 안정화: 시작 시 대시보드 자동 진입 제거
