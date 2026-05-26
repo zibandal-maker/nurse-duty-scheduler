@@ -1528,7 +1528,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.35';
+const APP_VERSION = '3.16.39';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -4385,7 +4385,14 @@ function autoFill(){
       var a=attrOf[id];
       if(sh==='N'){ if(a.pregnant||a.nightExempt)return false; if(a.fixedShift&&a.fixedShift!=='N')return false;
         var nl=a.nightDedicated?NR.monthlyNightMaxDedicated:NR.monthlyNightMaxRegular; if(nights[id]>=nl)return false;
-        if(consecN[id]>=NR.consecutiveNightMax)return false; }
+        if(consecN[id]>=NR.consecutiveNightMax)return false;
+        // v3.16.37: 신규간호사 월 야간 한도·연속 야간을 하드제약으로 (기존엔 softScore +12 페널티뿐이라
+        //   다른 후보 없으면 한도 초과 — 신규가 월 7회까지 N 서는 버그). 안전 규칙이므로 canWork에서 차단.
+        if(isNew[id] && R.newNurse && R.newNurse.enabled){
+          if(R.newNurse.maxNightPerMonth>0 && newNightCnt[id]>=R.newNurse.maxNightPerMonth) return false;
+          if(R.newNurse.noConsecNight && (grid[id][d-1]||'')==='N') return false;
+        }
+      }
       else { if(a.nightDedicated)return false; if(a.fixedShift&&a.fixedShift!==sh)return false; }
       if(workStreak[id]>=R.consecutive.maxWorkStreak)return false;
       if(forbidPat(id,d,sh))return false; return true; }
@@ -4400,7 +4407,10 @@ function autoFill(){
       if(a.floating){ if(sh==='N'&&a.nightDedicated)return -100; if(a.fixedShift===sh)return -8; return 0; }
       var c=shiftCnt[id]||{D:0,E:0,N:0};
       var avg=(c.D+c.E+c.N)/3;
-      var pen=(c[sh]-avg)*0.8;
+      var pen=(c[sh]-avg)*1.1;   // v3.16.38: 0.8→1.1, 시프트 편중 교정 강화
+      // v3.16.38: 미보유 시프트 강한 우선 — 명단 순서 편향으로 하단 간호사가 특정 시프트(D 등)를
+      //   한 번도 못 받는 문제(류하림·전소미 D=0). 해당 시프트 보유 0이면 강한 보너스로 다양성 보장.
+      if((c[sh]||0)===0 && (c.D+c.E+c.N)>=2){ pen -= 7; }   // v3.16.38: 2번 이상 근무했는데 이 시프트 0이면 강한 우선(다양성 보장)
       if(sh==='N' && a.nightDedicated){
         // v3.16.35: 야간전담 N 우선도를 '페이스 인식형'으로 — 강하게 우선(-100)하되,
         //   이번 달 N을 페이스보다 앞서 많이 섰으면 우선도를 낮춰 후반을 위해 분산(초반 몰빵 방지).
@@ -4433,9 +4443,17 @@ function autoFill(){
     //   값 클수록 후순위. 가중치 0.1(강회피)≈+6, 0.01(매우강)≈+12 수준으로 환산.
     function softScore(id,d,sh){
       var s=0; var a=attrOf[id]; var pr=prefsOf[id];
-      // (1) 선호도: 선호(+1)→보너스, 기피(-1)→페널티
-      if(pr[sh]===1) s-=4; else if(pr[sh]===-1) s+=6;
-      // (2) 신규간호사 야간 제한
+      var W=R.weights||{prefer:1.4,avoid:0.3,neutral:1.0,partnerPrefer:1.3,partnerAvoid:0.2,equityStrength:0.6};
+      // v3.16.36: 하드코딩 상수 대신 규칙설정(R.weights)을 반영 — 그리디와 일관.
+      //   그리디는 곱셈 가중치(높을수록 선호)이나 백트래킹 score는 페널티 체계(낮을수록 우선)라
+      //   weights를 페널티 스케일로 변환: 선호↑(prefer 큼)→보너스 크게(음수), 기피↑(avoid 작음)→페널티 크게(양수).
+      var prefBonus = (W.prefer-1)*10;        // prefer 1.4 → -4.0 보너스
+      var avoidPen  = (1-W.avoid)*8.6;         // avoid 0.3 → +6.0 페널티
+      var partPrefBonus = (W.partnerPrefer-1)*6.7; // 1.3 → -2.0
+      var partAvoidPen  = (1-W.partnerAvoid)*5;    // 0.2 → +4.0
+      // (1) 선호도: 선호(+1)→보너스, 기피(-1)→페널티 (설정 가중치 반영)
+      if(pr[sh]===1) s-=prefBonus; else if(pr[sh]===-1) s+=avoidPen;
+      // (2) 신규간호사 야간 제한 (안전 규칙 — 고정 강도 유지)
       if(isNew[id] && R.newNurse && R.newNurse.enabled){
         if(sh==='N'){
           if(R.newNurse.maxNightPerMonth>0 && newNightCnt[id]>=R.newNurse.maxNightPerMonth) s+=12;
@@ -4451,17 +4469,17 @@ function autoFill(){
           if(!srInSh) s+=6;
         }
       }
-      // (3) 임산부 동시배치 회피: 같은 시프트에 이미 임산부 있으면 회피
+      // (3) 임산부 동시배치 회피: 같은 시프트에 이미 임산부 있으면 회피 (안전 규칙)
       if(a.pregnant && R.attributeRules && R.attributeRules.pregnantNoSameShift){
         var otherPreg=ids.some(function(o){return o!==id && attrOf[o].pregnant && grid[o][d]===sh;});
         if(otherPreg) s+=6;
       }
-      // (4) 파트너 선호/기피: 같은 시프트에 선호 동료 있으면 보너스, 기피 동료 있으면 페널티
+      // (4) 파트너 선호/기피 (설정 가중치 반영)
       var n=nurseById[id]; var pf=(n.prefs&&n.prefs.preferWith)||[]; var av=(n.prefs&&n.prefs.avoidWith)||[];
       if(pf.length||av.length){
         ids.forEach(function(o){ if(o===id||grid[o][d]!==sh)return;
-          if(pf.indexOf(o)>=0) s-=2;
-          if(av.indexOf(o)>=0) s+=4;
+          if(pf.indexOf(o)>=0) s-=partPrefBonus;
+          if(av.indexOf(o)>=0) s+=partAvoidPen;
         });
       }
       return s;
@@ -4471,6 +4489,16 @@ function autoFill(){
       var po=(attrOf[id].preceptorOf)||[]; if(po.some(function(nid){return grid[nid]&&grid[nid][d]===sh;}))sc-=2;
       return sc; }
     function scoreMin(id,d,sh){ return paceDeficit(id,d) + shiftPenalty(id,d,sh) + softScore(id,d,sh); }
+    // v3.16.38: 정렬 비교자 — 점수 동점 시 명단 순서가 아니라 형평(총근무 적은 사람·이 시프트 적게 받은 사람) 우선.
+    //   기존엔 동점이면 JS sort가 ids(명단) 순서 유지 → 상단 간호사가 항상 먼저 뽑혀 하단이 쏠림.
+    function cmpBy(scoreFn,d,sh){ return function(a,bb){
+      var diff=scoreFn(a,d,sh)-scoreFn(bb,d,sh);
+      if(Math.abs(diff)>0.001) return diff;
+      var sa=(shiftCnt[a]&&shiftCnt[a][sh])||0, sb=(shiftCnt[bb]&&shiftCnt[bb][sh])||0;
+      if(sa!==sb) return sa-sb;                      // 이 시프트 적게 받은 사람 먼저
+      if(workSoFar[a]!==workSoFar[bb]) return workSoFar[a]-workSoFar[bb]; // 총근무 적은 사람 먼저
+      return 0;
+    };}
     var t0=Date.now();
     var SHIFTS=['N','E','D'];
     for(var d=1;d<=nd;d++){ var wknd=isWH(cy,cm,d);
@@ -4488,7 +4516,7 @@ function autoFill(){
         });
         shList.forEach(function(sh){
           var pool=ids.filter(function(id){return grid[id][d]===undefined&&isSr[id]&&canWork(id,d,sh);});
-          if(!pool.length)return; pool.sort(function(a,bb){return scoreMin(a,d,sh)-scoreMin(bb,d,sh);}); place(pool[0],d,sh);
+          if(!pool.length)return; pool.sort(cmpBy(scoreMin,d,sh)); place(pool[0],d,sh);
         });
       }
       // ── 단계 2: junior 슬롯 (선임 있는 시프트에 신규 우선 보호) ──
@@ -4501,7 +4529,7 @@ function autoFill(){
           if(R.newNurse&&R.newNurse.enabled&&R.newNurse.requireSeniorSameShift&&!hasSrSame){
             var nonNew=pool.filter(function(id){return !isNew[id];}); if(nonNew.length)pool=nonNew;
           }
-          if(!pool.length)break; pool.sort(function(a,bb){return scoreMin(a,d,sh)-scoreMin(bb,d,sh);}); place(pool[0],d,sh); }
+          if(!pool.length)break; pool.sort(cmpBy(scoreMin,d,sh)); place(pool[0],d,sh); }
       });
       // ── 단계 3: min 나머지 (아무 역할이나) ──
       SHIFTS.forEach(function(sh){
@@ -4515,16 +4543,31 @@ function autoFill(){
             //   일반 후보가 canWork를 통과 못한 경우에도, 플로팅은 우선 투입(단 하드 안전제약 canWork는 지킴).
             var fpool=ids.filter(function(id){return grid[id][d]===undefined&&isFloat[id]&&roleOf[id]!=='수간호사'&&canWork(id,d,sh);});
             if(!fpool.length)break;
-            fpool.sort(function(a,bb){return scoreMin(a,d,sh)-scoreMin(bb,d,sh);}); place(fpool[0],d,sh); continue;
+            fpool.sort(cmpBy(scoreMin,d,sh)); place(fpool[0],d,sh); continue;
           }
-          pool.sort(function(a,bb){return scoreMin(a,d,sh)-scoreMin(bb,d,sh);}); place(pool[0],d,sh); }
+          pool.sort(cmpBy(scoreMin,d,sh)); place(pool[0],d,sh); }
       });
+      // v3.16.39: min 구제 패스 — 위 단계로도 min 미달이 남으면, OFF 페이스·다양성을 무시하고
+      //   canWork 통과자를 강제 투입. min 정원(환자안전)은 OFF 균등보다 절대 우선.
+      //   원인: SHIFTS 순서(N→E→D)로 D가 마지막이라 D가용자가 E/N에 먼저 소진 + OFF페이스로 가용자를 놀림.
+      SHIFTS.forEach(function(sh){
+        var guard2=0;
+        while(curCnt(d,sh)<need[sh].min && guard2++<50){
+          var pool=ids.filter(function(id){return grid[id][d]===undefined&&roleOf[id]!=='수간호사'&&canWork(id,d,sh);});
+          if(!pool.length){
+            var fp=ids.filter(function(id){return grid[id][d]===undefined&&isFloat[id]&&roleOf[id]!=='수간호사'&&canWork(id,d,sh);});
+            if(!fp.length)break; fp.sort(cmpBy(scoreMin,d,sh)); place(fp[0],d,sh); continue;
+          }
+          pool.sort(cmpBy(scoreMin,d,sh)); place(pool[0],d,sh);
+        }
+      });
+      // ── 단계 4: off균등 후처리 (max까지, 페이스 안 앞선 사람) ──
       SHIFTS.forEach(function(sh){
         for(var k=curCnt(d,sh);k<need[sh].max;k++){
           var pool=ids.filter(function(id){return grid[id][d]===undefined&&roleOf[id]!=='수간호사'&&canWork(id,d,sh)&&paceDeficit(id,d)<0.5;});
           var hasSrN=(sh==='N')&&ids.some(function(id){return grid[id][d]==='N'&&isSr[id];});
           if(sh==='N'&&!hasSrN)pool=pool.filter(function(id){return !isNew[id];});
-          if(!pool.length)break; pool.sort(function(a,bb){return score(a,d,sh)-score(bb,d,sh);}); place(pool[0],d,sh); }
+          if(!pool.length)break; pool.sort(cmpBy(score,d,sh)); place(pool[0],d,sh); }
       });
       // ── 나머지 O ──
       ids.forEach(function(id){ if(grid[id][d]===undefined){grid[id][d]='O';offSoFar[id]++;workStreak[id]=0;} if(grid[id][d]!=='N')consecN[id]=0; });
