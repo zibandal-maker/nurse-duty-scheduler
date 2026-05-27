@@ -1528,7 +1528,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.39';
+const APP_VERSION = '3.16.43';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -2436,7 +2436,8 @@ class RuleEngine {
       },
       consecutive: {
         maxNightStreak: 3,
-        offAfterNight: 1,
+        minNightStreak: 0,     // v3.16.43: 나이트 최소 연속 (0=비활성, 2=2연속 강제). 사전확인형 — 단독 N 방지.
+        offAfterNight: 1,      // 2연속 이상 N 블록 종료 후 필수 OFF 일수
         maxWorkStreak: 7,
         allowNightToEve: false,
       },
@@ -2601,6 +2602,7 @@ class RuleEngine {
       },
       consecutive: {
         maxNightStreak: function(v){ return this._clamp(v,1,7); },
+        minNightStreak: function(v){ return this._clamp(v,0,3); },
         offAfterNight:  function(v){ return this._clamp(v,0,3); },
         maxWorkStreak:  function(v){ return this._clamp(v,0,14); },
         allowNightToEve:function(v){ return !!v; },
@@ -2988,6 +2990,7 @@ function defaultAttributes(){
     pregnant:false,        // 임산부 — 야간 금지, 동시 배치 회피
     nightDedicated:false,  // 야간전담 — 야간만 배치
     nightExempt:false,     // 야간 면제 (건강상 사유 등)
+    weekdayOnly:false,     // v3.16.41: 상근직 — 토·일·공휴일 근무 제외 (주중만)
     fixedShift:null,       // 고정 근무 'D'|'E'|'N'|null (사이클 근무자)
     floating:false,        // v3.16.31: 플로팅(유연 인력) — 어느 시프트든 가능, 막힌 슬롯 우선 투입, 일부 소프트제약 면제
     repeatPattern:null,    // v3.15: 반복 근무 패턴 {seq:['N','N','N','O','O'], anchor:1} | null
@@ -2997,7 +3000,7 @@ function defaultAttributes(){
   };
 }
 function defaultPrefs(){
-  return { shift:{D:0,E:0,N:0}, avoidWith:[], preferWith:[] };
+  return { shift:{D:0,E:0,N:0}, monthlyMax:{D:null,E:null,N:null}, avoidWith:[], preferWith:[] };
 }
 // 간호사 1명의 누락 필드를 기본값으로 보강 (로드 시 호출)
 function migrateNurse(n){
@@ -3008,6 +3011,15 @@ function migrateNurse(n){
   // 선호도
   if(!n.prefs) n.prefs=defaultPrefs();
   if(!n.prefs.shift) n.prefs.shift={D:0,E:0,N:0};
+  // v3.16.40: 개인별 월 최대 D/E/N 상한 (null=무제한). 선호도(±1)를 대체하는 주력 제약.
+  // v3.16.42: 로드/import 시 값 정규화 — 잘못된 값(음수·문자·31초과)이 조용히 무제한 처리되지 않게 방어.
+  if(!n.prefs.monthlyMax || typeof n.prefs.monthlyMax!=='object') n.prefs.monthlyMax={D:null,E:null,N:null};
+  ['D','E','N'].forEach(function(sh){
+    var v=n.prefs.monthlyMax[sh];
+    if(v===null||v===undefined||v===''){ n.prefs.monthlyMax[sh]=null; return; }
+    var num=parseInt(v,10);
+    n.prefs.monthlyMax[sh] = isNaN(num) ? null : Math.max(0, Math.min(31, num));
+  });
   if(!n.prefs.avoidWith) n.prefs.avoidWith=[];
   if(!n.prefs.preferWith) n.prefs.preferWith=[];
   // 속성: 누락 키를 기본값으로 보강
@@ -4359,10 +4371,11 @@ function autoFill(){
   //   반환: true (항상 성공 — 멈추지 않음).
   function _runBacktrack(nd, R, lockedBackup){
     var ids = nurses.map(function(n){return n.id;});
-    var attrOf={},roleOf={},isSr={},isNew={},prefsOf={},nurseById={},isFloat={};
+    var attrOf={},roleOf={},isSr={},isNew={},prefsOf={},nurseById={},isFloat={},maxOf={};
     nurses.forEach(function(n){attrOf[n.id]=n.attributes||{};roleOf[n.id]=n.role;
       isSr[n.id]=(n.role==='주임'||n.role==='차지'); isNew[n.id]=(n.role==='신규간호사');
       prefsOf[n.id]=(n.prefs&&n.prefs.shift)||{D:0,E:0,N:0}; nurseById[n.id]=n;
+      maxOf[n.id]=(n.prefs&&n.prefs.monthlyMax)||{D:null,E:null,N:null};  // v3.16.40: 월 상한
       isFloat[n.id]=!!(n.attributes&&n.attributes.floating);});
     var newNightCnt={}; ids.forEach(function(id){newNightCnt[id]=0;});  // 신규 월 야간 누적
     var head=nurses.find(function(n){return n.role==='수간호사';});
@@ -4383,6 +4396,7 @@ function autoFill(){
       if(grid[id][d]!==undefined) return grid[id][d]===sh;        // 락/보존/수간호사 고정
       if(lockedBackup[key(id,d)]!==undefined || isLocked(id,d)) return false;
       var a=attrOf[id];
+      if(a.weekdayOnly && isWH(cy,cm,d)) return false;  // v3.16.41: 상근직 — 주말·공휴일 근무 불가
       if(sh==='N'){ if(a.pregnant||a.nightExempt)return false; if(a.fixedShift&&a.fixedShift!=='N')return false;
         var nl=a.nightDedicated?NR.monthlyNightMaxDedicated:NR.monthlyNightMaxRegular; if(nights[id]>=nl)return false;
         if(consecN[id]>=NR.consecutiveNightMax)return false;
@@ -4394,8 +4408,44 @@ function autoFill(){
         }
       }
       else { if(a.nightDedicated)return false; if(a.fixedShift&&a.fixedShift!==sh)return false; }
+      // v3.16.40: 개인별 월 최대 D/E/N 상한 (하드제약). 해당 시프트 이미 상한 도달이면 불가.
+      var mx=maxOf[id]; if(mx && mx[sh]!=null && (shiftCnt[id]&&shiftCnt[id][sh]||0)>=mx[sh]) return false;
       if(workStreak[id]>=R.consecutive.maxWorkStreak)return false;
-      if(forbidPat(id,d,sh))return false; return true; }
+      if(forbidPat(id,d,sh))return false;
+      // v3.16.43: 야간 블록 규칙 (minNightStreak 켜진 경우만 활성)
+      var RCons=R.consecutive;
+      if(RCons.minNightStreak>0){
+        // (A) 2연속 이상 N 블록 종료 후 OFF 강제: 직전에 끝난 N블록 길이≥2이고, 그 뒤 OFF가 offAfterNight 미만이면 근무 불가
+        if(sh!=='N'){
+          // d일 직전의 연속 OFF 수 + 그 앞 N블록 길이 계산
+          var k=d-1, offRun=0;
+          while(k>=1 && (grid[id][k]==='O'||grid[id][k]==='V')){ offRun++; k--; }
+          var nBlk=0; while(k>=1 && grid[id][k]==='N'){ nBlk++; k--; }
+          if(nBlk>=2 && offRun < (RCons.offAfterNight||0)) return false;  // N블록 후 OFF 더 필요
+        }
+        // (B) 사전확인형 최소 연속 N: N을 새로 시작(어제 N 아님)하는데, 다음날 이 사람이 N 불가하면 단독 N → 거부
+        if(sh==='N' && (grid[id][d-1]||'')!=='N' && d<nd){
+          var nextOk = _canStartNightHere(id,d);
+          if(!nextOk) return false;
+        }
+      }
+      return true; }
+    // v3.16.43: N을 d일 시작할 때, 최소연속(minNightStreak)을 채울 수 있는지 사전 확인.
+    //   다음 (minNightStreak-1)일 동안 하드제약(월한도·연속한도·락·상근·속성)이 N을 막지 않으면 OK.
+    function _canStartNightHere(id,d){
+      var need=R.consecutive.minNightStreak-1; var a=attrOf[id];
+      for(var k=1;k<=need;k++){ var dd=d+k; if(dd>nd) return false;
+        if(grid[id][dd]!==undefined) return grid[id][dd]==='N';   // 이미 정해졌으면 N이어야
+        if(lockedBackup[key(id,dd)]!==undefined || isLocked(id,dd)) return false;
+        if(a.pregnant||a.nightExempt) return false;
+        if(a.fixedShift&&a.fixedShift!=='N') return false;
+        var nl=a.nightDedicated?NR.monthlyNightMaxDedicated:NR.monthlyNightMaxRegular;
+        if(nights[id]+k>=nl+1) return false;       // 월 한도 초과 예상
+        if(consecN[id]+k>NR.consecutiveNightMax) return false;
+        if(isNew[id]&&R.newNurse&&R.newNurse.enabled&&R.newNurse.maxNightPerMonth>0&&newNightCnt[id]+k>R.newNurse.maxNightPerMonth) return false;
+      }
+      return true;
+    }
     function place(id,d,sh){ grid[id][d]=sh; if(sh==='N'){nights[id]++;consecN[id]++;if(isNew[id])newNightCnt[id]++;} workStreak[id]++; if(shiftCnt[id])shiftCnt[id][sh]++; workSoFar[id]++; }
     function curCnt(d,sh){ return ids.filter(function(id){return grid[id][d]===sh;}).length; }
     // off부족(근무필요)순 + 프리셉터 보너스
@@ -4572,6 +4622,32 @@ function autoFill(){
       // ── 나머지 O ──
       ids.forEach(function(id){ if(grid[id][d]===undefined){grid[id][d]='O';offSoFar[id]++;workStreak[id]=0;} if(grid[id][d]!=='N')consecN[id]=0; });
     }
+    // v3.16.43: 사후 보정 — minNightStreak 켜진 경우, 단독 N을 best-effort로 2연속화.
+    //   정원 여유가 있으면 다음날 N으로 연장(2연속). 연장 불가하면 단독 N을 그대로 둔다
+    //   (O변환·대체투입은 정원/OFF를 더 크게 망가뜨려 역효과 — 측정으로 확인, best-effort만 채택).
+    if(R.consecutive.minNightStreak>=2){
+      ids.forEach(function(id){ if(attrOf[id].nightDedicated)return;
+        for(var d=1;d<=nd;d++){
+          if(grid[id][d]!=='N')continue;
+          var prevN=(d>1&&grid[id][d-1]==='N'), nextN=(d<nd&&grid[id][d+1]==='N');
+          if(prevN||nextN)continue;
+          if(d<nd){
+            var nx=grid[id][d+1];
+            var nNd=R.staffingFor('N',isWH(cy,cm,d+1)); var curN=ids.filter(function(x){return grid[x][d+1]==='N';}).length;
+            if((nx==='O'||nx===undefined)&&!isLocked(id,d+1)&&lockedBackup[key(id,d+1)]===undefined
+               && curN < (nNd?nNd.max:99)){
+              var a=attrOf[id];
+              var nCnt=0;for(var z=1;z<=nd;z++)if(grid[id][z]==='N')nCnt++;
+              var nl=a.nightDedicated?NR.monthlyNightMaxDedicated:NR.monthlyNightMaxRegular;
+              var okExt=!(a.pregnant||a.nightExempt)&&!(a.fixedShift&&a.fixedShift!=='N')&&nCnt<nl;
+              if(isNew[id]&&R.newNurse&&R.newNurse.enabled&&R.newNurse.maxNightPerMonth>0&&nCnt>=R.newNurse.maxNightPerMonth)okExt=false;
+              if(a.weekdayOnly&&isWH(cy,cm,d+1))okExt=false;
+              if(okExt){ if(nx==='O')offSoFar[id]--; grid[id][d+1]='N'; }
+            }
+          }
+        }
+      });
+    }
     ids.forEach(function(id){for(var d=1;d<=nd;d++){ schedule[key(id,d)]=grid[id][d]||'O'; }});
     console.log('[autoFill:backtrack] '+(Date.now()-t0)+'ms');
     return true;
@@ -4632,6 +4708,16 @@ function autoFill(){
 
   // 가중치 기반 확률 선택 (형평성 보정 포함)
   function wpick(arr,sh,partner){
+    if(!arr.length) return null;
+    // v3.16.41: 절대 금지(상근직 주말·공휴일, 월 상한 도달)는 후보에서 완전 제외 — _ban(확률0.0001)으론
+    //   다른 후보 없을 때 뚫리므로, 임산부 야간처럼 사전 제외해야 확실.
+    var _wknd=isWH(cy,cm,d);
+    arr=arr.filter(function(n){
+      if(n.attributes&&n.attributes.weekdayOnly&&_wknd) return false;
+      var mm=(n.prefs&&n.prefs.monthlyMax)||null;
+      if(mm&&mm[sh]!=null&&(st[n.id].sc[sh]||0)>=mm[sh]) return false;
+      return true;
+    });
     if(!arr.length) return null;
     var W=R.weights;
     var items=arr.map(function(n){
@@ -6548,15 +6634,19 @@ function checkPrefViolations() {
 
   nurses.forEach(function(n) {
     var p = getPrefs(n);
+    // v3.16.40: 월 최대 초과 체크 (자동배치는 하드제약이라 안 넘지만, 수동 편집 시 넘을 수 있어 경고)
+    var mx = (n.prefs&&n.prefs.monthlyMax)||{D:null,E:null,N:null};
+    var cnt={D:0,E:0,N:0};
+    for(var dd=1; dd<=nd; dd++){ var c2=schedule[key(n.id,dd)]; if(cnt[c2]!==undefined)cnt[c2]++; }
+    ['D','E','N'].forEach(function(sh){
+      if(mx[sh]!=null && cnt[sh]>mx[sh]){
+        violations.push({d:0, nid:n.id, type:'monthly-max',
+          msg:n.name+' — '+sh+' '+cnt[sh]+'회 (월 최대 '+mx[sh]+'회 초과)'});
+      }
+    });
     for(var d = 1; d <= nd; d++) {
       var code = schedule[key(n.id, d)];
       if(!code || code === 'O' || code === 'V') continue;
-
-      // 교대 기피 체크
-      if(['D','E','N'].indexOf(code) >= 0 && p.shift[code] === -1) {
-        violations.push({d:d, nid:n.id, type:'shift-avoid',
-          msg:n.name+' '+d+'일 '+code+' — 기피 교대 배정'});
-      }
 
       // 파트너 기피 체크
       if(p.avoidWith.length > 0) {
@@ -6601,36 +6691,26 @@ function partnerScore(n1, n2) {
   return s;
 }
 
-// 선호도 UI 렌더
+// 선호도 UI 렌더 — v3.16.40: 시프트 선호(±1) 제거, 개인별 월 최대 D/E/N 입력으로 대체. 파트너 선호/기피는 유지.
 function renderPrefUI(n) {
   var p = getPrefs(n);
-  // v3.13: D/E/N 배지를 클릭으로 3-state 순환 (중립→선호→기피). 한 줄로 압축.
+  var mx = (n.prefs&&n.prefs.monthlyMax)||{D:null,E:null,N:null};
   var SHC = {D:'#2EA875', E:'#E8607E', N:'#7C5FD3'};
-  var shiftBadges = ['D','E','N'].map(function(sh){
-    var val = p.shift[sh]||0;
-    var on = val!==0;
-    var c = SHC[sh];
-    var dis = (val===1) ? '' : attrConflict(n, 'pref', sh);   // 이미 선호중이면 정규화가 처리, 그 외 모순이면 비활성
-    if(dis){
-      return '<span title="'+dis+'" '
-        +'style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:11px;font-weight:800;cursor:not-allowed;user-select:none;'
-        +'background:var(--bg2);color:var(--text3);border:1.5px dashed var(--bd2);opacity:.35">'
-        +sh+'</span>';
-    }
-    // 선호=색채움+👍, 기피=색테두리+✕(흰바탕), 중립=흐림
-    var style, mark='';
-    if(val===1){ style='background:'+c+';color:#fff;border:1.5px solid '+c+';box-shadow:0 1px 3px rgba(0,0,0,.18)'; mark='<span style="position:absolute;top:-4px;right:-4px;font-size:9px">👍</span>'; }
-    else if(val===-1){ style='background:var(--bg);color:'+c+';border:1.5px solid '+c; mark='<span style="position:absolute;top:-4px;right:-4px;font-size:8px">✕</span>'; }
-    else { style='background:var(--bg2);color:var(--text3);border:1.5px solid var(--bd2);opacity:.55'; }
-    return '<span title="'+sh+' — 클릭: 중립→선호→기피" '
-      +'onclick="event.stopPropagation();cyclePrefShift('+n.id+',&quot;'+sh+'&quot;)" '
-      +'style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:11px;font-weight:800;cursor:pointer;user-select:none;'+style+'">'
-      +sh+mark+'</span>';
+  var SHLBL = {D:'Day', E:'Eve', N:'Night'};
+  // 월 최대 입력 (빈칸=무제한)
+  var maxInputs = ['D','E','N'].map(function(sh){
+    var v = (mx[sh]==null) ? '' : mx[sh];
+    return '<span style="display:inline-flex;align-items:center;gap:5px">'
+      +'<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:10px;font-weight:800;background:'+SHC[sh]+';color:#fff" title="'+SHLBL[sh]+'">'+sh+'</span>'
+      +'<input type="number" min="0" max="31" value="'+v+'" placeholder="∞" '
+      +'onclick="event.stopPropagation()" onchange="setMonthlyMax('+n.id+',&quot;'+sh+'&quot;,this.value)" '
+      +'style="width:46px;padding:4px 6px;border:1px solid var(--bd2);border-radius:7px;font-size:12px;text-align:center;font-family:inherit;background:var(--bg)">'
+      +'</span>';
   }).join('');
 
-  // 파트너 선호도 (수간호사 제외, 자기 자신 제외)
+  // 파트너 선호도 (수간호사 제외, 자기 자신 제외) — 유지
   var others = nurses.filter(function(x){ return x.id!==n.id && x.role!=='수간호사'; });
-  var partnerRows = others.length ? '<div class="pref-row" style="align-items:flex-start;margin-top:7px">'
+  var partnerRows = others.length ? '<div class="pref-row" style="align-items:flex-start;margin-top:9px">'
     +'<span class="pref-label" style="margin-top:3px">파트너</span>'
     +'<div style="display:flex;flex-wrap:wrap;gap:4px">'
     +others.map(function(o) {
@@ -6643,14 +6723,20 @@ function renderPrefUI(n) {
     +'</div></div>' : '';
 
   return '<div class="efr full" style="margin-bottom:4px">'
-    +'<label>근무 선호도 <span style="color:var(--text3);font-weight:400">(배지 클릭: 중립→선호→기피)</span></label>'
-    +'<div style="display:flex;align-items:center;gap:7px;margin-top:6px">'
-    +'<span style="font-size:10px;color:var(--text3)">교대</span>'
-    +shiftBadges
-    +'<span style="font-size:9.5px;color:var(--text3);margin-left:4px">👍선호 · ✕기피</span>'
+    +'<label>월 최대 근무 수 <span style="color:var(--text3);font-weight:400">(빈칸=무제한 · 이 수만큼만 배치)</span></label>'
+    +'<div style="display:flex;align-items:center;gap:12px;margin-top:7px;flex-wrap:wrap">'
+    +maxInputs
     +'</div>'
     +partnerRows
     +'</div>';
+}
+function setMonthlyMax(nid, sh, val){
+  var n=getNurse(nid); if(!n)return;
+  if(!n.prefs) n.prefs=defaultPrefs();
+  if(!n.prefs.monthlyMax) n.prefs.monthlyMax={D:null,E:null,N:null};
+  var v=String(val).trim();
+  n.prefs.monthlyMax[sh] = (v==='') ? null : Math.max(0, Math.min(31, parseInt(v,10)||0));
+  saveLocal(true);
 }
 
 // v3.5: 간호사 속성 UI ─────────────────────────────────────────────────
@@ -6788,6 +6874,7 @@ function renderAttrUI(n){
     +chip('pregnant',      '🤰 임산부',     '#C0392B', '임산부 — 야간 금지, 동시 배치 회피')
     +chip('nightDedicated','🌙 야간전담',   '#7C5FD3', '야간전담 간호사 — 야간만 배치')
     +chip('nightExempt',   '🚫 야간면제',   '#C0781A', '건강상 사유 등으로 야간 면제')
+    +chip('weekdayOnly',   '🗓️ 상근직',     '#2563A8', '상근직 — 토·일·공휴일 근무 제외(주중만 배치). 주말 인력이 줄므로 주말 정원을 낮춰주세요.')
     +chip('floating',      '🃏 플로팅',     '#2E8B8B', '플로팅(유연 인력) — 어느 시프트든 배치, 인력 빈 슬롯 우선 투입. 베테랑·파트타임 등 유연 근무자에 사용')
     +'</div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;align-items:center">'
@@ -7253,7 +7340,8 @@ function renderRulesList(){
   // 2. 연속 근무 규칙
   html+=section('연속 근무 규칙','🔄',
     row('나이트 최대 연속 일수',numInput('maxNightStreak',R.consecutive.maxNightStreak,1,7),'일')
-    +row('나이트 후 필수 Off',numInput('offAfterNight',R.consecutive.offAfterNight,0,3),'일')
+    +row('나이트 최소 연속 일수',numInput('minNightStreak',R.consecutive.minNightStreak,0,3),'일 (0=비활성 · 2=단독 N 금지, 2연속 이상)')
+    +row('나이트 블록 후 필수 Off',numInput('offAfterNight',R.consecutive.offAfterNight,0,3),'일 (2연속↑ N 종료 후)')
     +row('최대 연속 근무 일수',numInput('maxWorkStreak',R.consecutive.maxWorkStreak,0,14),'일 (0=비활성)')
     +row('나이트→이브닝 직전환',chkInput('allowNightToEve',R.consecutive.allowNightToEve,'허용'),'')
   );
@@ -8041,14 +8129,11 @@ function renderViewMode(n){
     if(names.length) row('🎓 프리셉티', names.join(', '));
   }
 
-  // 활성 선호도만 (중립 제외)
-  var sh = p.shift||{};
-  var prefShifts = [];
-  ['D','E','N'].forEach(function(s){
-    if(sh[s]===1) prefShifts.push(s+' 선호');
-    else if(sh[s]===-1) prefShifts.push(s+' 기피');
-  });
-  if(prefShifts.length) row('교대 선호', prefShifts.join(' · '));
+  // v3.16.40: 월 최대 근무 수 요약 (설정된 것만)
+  var mxx = (n.prefs&&n.prefs.monthlyMax)||{};
+  var maxList = [];
+  ['D','E','N'].forEach(function(s){ if(mxx[s]!=null) maxList.push(s+'≤'+mxx[s]); });
+  if(maxList.length) row('월 최대', maxList.join(' · '));
   if((p.preferWith||[]).length){
     var pw = p.preferWith.map(function(id){var x=getNurse(id);return x?x.name:'';}).filter(Boolean);
     if(pw.length) row('👍 파트너', pw.join(', '));
@@ -8431,6 +8516,7 @@ function importJSON(evt){
 
       // 데이터 적용
       nurses=data.nurses;
+      nurses.forEach(function(n){ migrateNurse(n); });  // v3.16.42: import 시 누락·잘못된 필드 보강(monthlyMax 정규화 포함)
       schedule=data.schedule;
       nextId=data.nextId||(nurses.length?Math.max.apply(null,nurses.map(function(n){return n.id;}))+1:1);
       if(data.customEvents) customEvents=data.customEvents;
