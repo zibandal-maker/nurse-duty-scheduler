@@ -1528,7 +1528,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.43';
+const APP_VERSION = '3.16.44';
 const UPDATE_NOTES = [
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
@@ -2039,12 +2039,12 @@ function _indivPage(n){
     grid+='<tr>';
     for(var c=0;c<7;c++){
       var d=cells[r*7+c];
-      if(!d){ grid+='<td style="border:1px solid #eee;height:92px"></td>'; continue; }
+      if(!d){ grid+='<td style="border:1px solid #eee;height:120px"></td>'; continue; }
       var code=schedule[key(n.id,d)]||'';
       var dow=new Date(cy,cm,d).getDay();
       var hol=isH(cy,cm,d);
       var dc=(dow===0||hol)?'#C0392B':dow===6?'#1F5FA5':'#333';
-      var inner='<div style="display:flex;justify-content:space-between"><span style="font-size:10px;font-weight:700;color:'+dc+'">'+d+'</span>';
+      var inner='<div style="display:flex;justify-content:space-between"><span style="font-size:13px;font-weight:700;color:'+dc+'">'+d+'</span>';
       if(hol){ var hnm=hn(cy,cm,d); if(hnm)inner+='<span style="font-size:7px;color:#C0392B">'+hnm.charAt(0)+'</span>'; }
       inner+='</div>';
       if(code==='O'){
@@ -2056,17 +2056,17 @@ function _indivPage(n){
       } else if(code==='D'||code==='E'||code==='N'){
         inner+='<div style="font-size:14px;font-weight:800;color:'+COL[code]+';text-align:center;line-height:1.1">'+LBL[code]+'</div>';
         var mate=_shiftMembers(d, code, n.id);
-        if(mate.length)inner+='<div style="font-size:7px;color:#666;text-align:center;line-height:1.2;margin-top:1px">같은조 '+mate.join('·')+'</div>';
+        if(mate.length)inner+='<div style="font-size:13px;color:#555;text-align:center;line-height:1.35;margin-top:3px">같은조 '+mate.join('·')+'</div>';
         var ho=HO[code];
         inner+='<div style="margin-top:2px;border-top:1px dotted #ddd;padding-top:2px">';
         ho.forEach(function(x){
           var mem=_shiftMembers(d+x.off, x.key, null);
           var whoStr=mem.length?mem.join('·'):'—';
-          inner+='<div style="font-size:7px;line-height:1.4;text-align:center"><b style="color:'+x.c+'">'+x.label+'</b> <span style="color:#777">'+whoStr+'</span></div>';
+          inner+='<div style="font-size:13px;line-height:1.45;text-align:center"><b style="color:'+x.c+'">'+x.label+'</b> <span style="color:#777">'+whoStr+'</span></div>';
         });
         inner+='</div>';
       }
-      grid+='<td style="border:1px solid #ccc;height:92px;vertical-align:top;padding:2px 3px;background:'+(BG[code]||'#fff')+'">'+inner+'</td>';
+      grid+='<td style="border:1px solid #ccc;height:120px;vertical-align:top;padding:2px 3px;background:'+(BG[code]||'#fff')+'">'+inner+'</td>';
     }
     grid+='</tr>';
   }
