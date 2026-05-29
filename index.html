@@ -1528,7 +1528,7 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.17.0';
+const APP_VERSION = '3.17.1';
 const UPDATE_NOTES = [
   { v:'3.17.0', date:'2026-05', items:[
     '🎯 <b>개인별 월 최대 D/E/N</b> — 시프트 선호도(★/✕)를 제거하고, 간호사별 월 D·E·N 최대 횟수 상한으로 대체. 자동배치가 상한까지만 채우고 나머지는 수간호사 재량으로 조정. (빈칸=무제한)',
@@ -1831,6 +1831,11 @@ let nurses=[
   {id:8,name:'임신규',role:'신규간호사',joinDate:'2025-02-26',vacTotal:11,color:'#5B44C8',birthday:'',memo:'',photo:'',prefs:{shift:{D:0,E:0,N:0},avoidWith:[],preferWith:[]}},
 ];
 let nextId=9;
+// v3.17.1: personId — 부서 무관 사람 식별자 (옵션 1). 'p_0001'~'p_9999' 형식.
+//   부서 내 id(nurse.id)는 부서 내 식별·참조(스케줄·락·파트너 관계)에 쓰임.
+//   personId는 부서 간 식별·통합 인사 메뉴·향후 부서 이동에 쓰임. 절대 변경되지 않음.
+//   비교대 앱 등 다른 부서 앱이 같은 사람을 추적할 때 사용.
+let nextPersonId=1;
 let schedule={};
 let _NCW=150;  // v3.16.18: 이름칸 동적 폭(render에서 산정)
 let customEvents=[];
@@ -3020,6 +3025,15 @@ function defaultPrefs(){
 }
 // 간호사 1명의 누락 필드를 기본값으로 보강 (로드 시 호출)
 function migrateNurse(n){
+  // v3.17.1: personId 자동 보강 — 기존 데이터는 personId가 없으니, 로드 시 발급.
+  //   nextPersonId가 발급될 ID와 충돌하지 않게 max+1로 후속 카운터도 맞춤.
+  if(!n.personId){
+    n.personId = 'p_'+String(nextPersonId++).padStart(4,'0');
+  } else {
+    // 기존 personId가 있으면 nextPersonId가 그보다 큰지 확인 (import·복원 대비)
+    var m = /^p_(\d+)$/.exec(n.personId);
+    if(m){ var num=parseInt(m[1],10); if(num>=nextPersonId) nextPersonId=num+1; }
+  }
   if(n.joinDate===undefined) n.joinDate='';
   if(!n.birthday) n.birthday='';
   if(!n.memo) n.memo='';
@@ -3065,6 +3079,7 @@ var NurseStore = {
     var maxOrd=nurses.reduce(function(m,n){return Math.max(m,typeof n.manualOrder==='number'?n.manualOrder:-1);},-1);
     var n={
       id: nextId++,
+      personId: 'p_'+String(nextPersonId++).padStart(4,'0'),  // v3.17.1: 부서 무관 사람 식별자
       name: fields.name,
       role: fields.role,
       joinDate: fields.joinDate||'',
@@ -8411,6 +8426,7 @@ function exportJSON(){
       nurses:JSON.parse(JSON.stringify(nurses)),
       schedule:JSON.parse(JSON.stringify(schedule)),
       nextId:nextId,
+      nextPersonId:nextPersonId,    // v3.17.1
       customEvents:JSON.parse(JSON.stringify(customEvents)),
       nextEvtId:nextEvtId,
       rules:JSON.parse(JSON.stringify(RULES.toJSON())),
@@ -8574,6 +8590,10 @@ function importJSON(evt){
       nurses.forEach(function(n){ migrateNurse(n); });  // v3.16.42: import 시 누락·잘못된 필드 보강(monthlyMax 정규화 포함)
       schedule=data.schedule;
       nextId=data.nextId||(nurses.length?Math.max.apply(null,nurses.map(function(n){return n.id;}))+1:1);
+      // v3.17.1: nextPersonId 복원. 파일에 없거나(구버전) 작으면 migrateNurse가 이미 키운 값 사용.
+      if(typeof data.nextPersonId==='number' && data.nextPersonId>nextPersonId){
+        nextPersonId=data.nextPersonId;
+      }
       if(data.customEvents) customEvents=data.customEvents;
       if(data.nextEvtId) nextEvtId=data.nextEvtId;
       if(data.rules){RULES=RuleEngine.fromJSON(data.rules);RULES.save();}
