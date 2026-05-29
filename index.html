@@ -1528,8 +1528,18 @@ const NCOLS=['#C0392B','#E67E22','#D35DB3','#8E44AD','#2980B9','#1A8C62','#16A08
 const ROLES=['수간호사','주임','차지','평간호사','신규간호사'];
 // ── v3.11: 업데이트 노트 (중앙 관리) ────────────────────────────────────
 // 새 버전 낼 때 맨 위에 한 줄 추가하면 환영 모달·가이드에 자동 반영됨.
-const APP_VERSION = '3.16.44';
+const APP_VERSION = '3.17.0';
 const UPDATE_NOTES = [
+  { v:'3.17.0', date:'2026-05', items:[
+    '🎯 <b>개인별 월 최대 D/E/N</b> — 시프트 선호도(★/✕)를 제거하고, 간호사별 월 D·E·N 최대 횟수 상한으로 대체. 자동배치가 상한까지만 채우고 나머지는 수간호사 재량으로 조정. (빈칸=무제한)',
+    '🗓️ <b>상근직 속성</b> — 토·일·공휴일 근무 제외. 간호사 카드에서 🗓️ 상근직 칩으로 지정',
+    '🌙 <b>야간 블록 옵션</b> — 나이트 최소 연속(단독 N 방지), 블록 후 필수 Off 일수 옵션 추가. 인력 빠빠하면 효과 제한적이라 기본 비활성',
+    '✋ <b>신규 야간 한도 강제</b> — 신규간호사 월 야간 한도가 소프트 경고에서 하드 차단으로 승격 (이전엔 다른 후보 없으면 한도 초과)',
+    '⎙ <b>개인 인쇄 글자 크게</b> — 같은조·전후 인계자 명단을 13px로 확대 (이전 7px → 잘 안 보임 피드백)',
+    '⚙️ <b>규칙설정 정리(15→8개)</b> — 야간 규칙 통합(연속근무+세부+역방향 단일 토글), 신규+속성 합침, 자동배치(엔진·가중치·원티드) 묶음, 고급·실험 접힘 그룹화. 중복 항목 제거',
+    '🔋 <b>피로도 야간 가중치 5</b> — 기본값 8→5로 낮춤 (모두가 과로로 표시되는 피드백 반영)',
+    '🛡️ <b>안전 강화</b> — 잘못된 JSON import 시 데이터 정규화(monthlyMax 음수·문자·범위초과 자동 정정), 양 엔진 weights 설정 반영(이전엔 백트래킹이 무시)',
+  ]},
   { v:'3.16.4', date:'2026-05', items:[
     '🧩 자동배치 — \'기존 배치 유지\' 옵션 추가. 수간호사가 일부 인원을 미리 배치해 두고 빈 칸만 자동으로 채울 수 있습니다. (칸을 채운 상태에서 자동배치 시 선택지 표시 · 원티드 락과 별개로 동작)',
   ]},
@@ -2421,7 +2431,7 @@ class RuleEngine {
         // ① 근무 타이밍 — 시프트별 1회당 피로 점수 (야간이 일주기 리듬 최대 교란)
         wDay: 1,      // D 주간
         wEve: 3,      // E 저녁
-        wNight: 8,    // N 야간 (기준값)
+        wNight: 5,    // v3.16.45: N 가중치 8→5 (사용자 피드백: 너무 세서 모두가 과로로 표시)
         // ② 누적 — 연속근무/회복부족
         consecFrom: 4,        // 연속근무 며칠째부터 가산 시작
         consecStep: 1,        // 가산 시작 후 1일마다 추가 점수 (4일째 +1, 5일째 +2…)
@@ -2491,7 +2501,7 @@ class RuleEngine {
 
       // ── v3.5: 야간/연속근무 세부 규칙 (KOSHA GUIDE H-22-2019) ────────────
       nightRules: {
-        consecutiveNightMax:      5,   // 연속 야간 최대 (사용자 기본: 5일, 느슨)
+        consecutiveNightMax:      3,   // v3.16.45: maxNightStreak 별칭(게터가 동기화). 기본값도 맞춤.
         restAfterConsecutiveNight:48,  // 2연속 야간 후 권장 휴식 (시간)
         monthlyNightMaxRegular:   7,   // 일반 간호사 월 야간 한도 (사용자 기본)
         monthlyNightMaxDedicated: 14,  // 야간전담 간호사 월 야간 한도
@@ -2586,7 +2596,13 @@ class RuleEngine {
   get newNurse()       { return this._cfg.newNurse; }
   get patternLearning(){ return this._cfg.patternLearning; }
   get forbiddenPatterns(){ return this._cfg.forbiddenPatterns; }
-  get nightRules()     { return this._cfg.nightRules; }
+  // v3.16.45: consecutiveNightMax(야간세부)와 maxNightStreak(연속근무)이 같은 개념인데 분리돼 있었음 →
+  //   nightRules 게터에서 consecutiveNightMax를 maxNightStreak의 별칭으로 동적 연동(항상 동기화).
+  get nightRules() {
+    var nr=this._cfg.nightRules;
+    nr.consecutiveNightMax = this._cfg.consecutive.maxNightStreak;  // 항상 동기화
+    return nr;
+  }
   get attributeRules() { return this._cfg.attributeRules; }
   get wantedLimits()   { return this._cfg.wantedLimits || {perMonthTotal:0, perNurseMonth:0}; }
 
@@ -7167,6 +7183,10 @@ function openRules(){
 function renderRulesList(){
   var R=RULES;
   var html='';
+  // v3.16.46: 섹션 재배치 — 각 섹션을 슬롯에 담아두고 끝에서 새 순서로 조립. 15개→8개로 통합.
+  var SLOTS={};
+  // 섹션 내용물(content)만 추출하는 헬퍼: section() 호출 대신 그냥 content를 모은다.
+  function _content(c){ return c; }
 
   // ── 섹션 렌더 헬퍼
   function section(title,icon,content,collapsible){
@@ -7200,7 +7220,7 @@ function renderRulesList(){
   }
 
   // 0. 병동 정보
-  html+=section('병동 정보','🏥',
+  SLOTS.ward = section('병동 정보','🏥',
     row('병동명','<input type="text" id="r_wardName" value="'+(R.display.wardName||'')+'" style="width:140px;padding:3px 6px;border:0.5px solid var(--bd2);border-radius:6px;font-size:11px;background:var(--bg);color:var(--text);font-family:inherit">','')
     +row('규칙 설명','<input type="text" id="r_desc" value="'+(R.display.description||'')+'" style="flex:1;min-width:200px;padding:3px 6px;border:0.5px solid var(--bd2);border-radius:6px;font-size:11px;background:var(--bg);color:var(--text);font-family:inherit">','')
   );
@@ -7327,7 +7347,7 @@ function renderRulesList(){
     +'<tbody>'+gridRows+'</tbody>'
     +'</table>';
 
-  html+=section('교대 인력 구성 (평일/주말 분리)','👥',
+  SLOTS.staff = section('교대 인력 구성 (평일/주말 분리)','👥',
     _diag
     + staffGrid
     +'<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;margin-top:8px;padding:7px 9px;background:var(--bg2);border-radius:6px">'
@@ -7337,28 +7357,40 @@ function renderRulesList(){
     +'<div style="font-size:12px;color:var(--text3);margin-top:7px"><span class="emoji">💡</span> off가 일부에게 쏠리면 주말 최소인원을 낮춰보세요. 위 진단의 권장 인원도 참고하세요.</div>'
   );
 
-  // 2. 연속 근무 규칙
-  html+=section('연속 근무 규칙','🔄',
-    row('나이트 최대 연속 일수',numInput('maxNightStreak',R.consecutive.maxNightStreak,1,7),'일')
+  // 2+7. v3.16.47: 야간 근무를 단일 섹션으로 통합 — 연속근무 규칙(생활리듬·블록근무 원칙)과
+  //   야간 세부 규칙(KOSHA 기준)이 결국 같은 야간 원칙이라 두 파트로 나눌 이유 없음. 한 흐름으로 평탄화.
+  //   '2연속 야간 후 휴식 48시간'은 엔진 미반영(참고용 표시뿐) → 파라미터 입력 제거, 텍스트 안내로 전환.
+  var NR=R.nightRules;
+  SLOTS.night = section('🌙 야간·연속 근무 규칙','🌙',
+    '<div style="font-size:11px;color:#3C3489;margin-bottom:10px;padding:7px 9px;background:#EEEDFE;border-radius:6px;line-height:1.55">'
+    +'근로기준법·산업안전보건공단(KOSHA GUIDE H-22-2019) 권고 기반. 위반 시 경고 표시.<br>'
+    +'<span style="color:var(--text3)">📌 참고: 2연속 이상 야간 근무 후엔 <b>최소 48시간 휴식</b>이 권장됩니다(자동배치엔 미반영, 모니터링용).</span>'
+    +'</div>'
+    +row('나이트 최대 연속 일수',numInput('maxNightStreak',R.consecutive.maxNightStreak,1,7),'일 (KOSHA 권고: 3일)')
     +row('나이트 최소 연속 일수',numInput('minNightStreak',R.consecutive.minNightStreak,0,3),'일 (0=비활성 · 2=단독 N 금지, 2연속 이상)')
     +row('나이트 블록 후 필수 Off',numInput('offAfterNight',R.consecutive.offAfterNight,0,3),'일 (2연속↑ N 종료 후)')
     +row('최대 연속 근무 일수',numInput('maxWorkStreak',R.consecutive.maxWorkStreak,0,14),'일 (0=비활성)')
-    +row('나이트→이브닝 직전환',chkInput('allowNightToEve',R.consecutive.allowNightToEve,'허용'),'')
+    +row('일반 간호사 월 야간 한도',numInput('nrMonthlyRegular',NR.monthlyNightMaxRegular,1,15),'회')
+    +row('야간전담 월 야간 한도',numInput('nrMonthlyDedicated',NR.monthlyNightMaxDedicated,1,20),'회 (단협 표준: 14회)')
+    +row('역방향 교대 금지',chkInput('nrForbidBackward',NR.forbidBackwardRotation,'정방향(D→E→N)만 허용 — E→D, N→E 등 역행 금지'),'')
   );
+  // v3.16.47: SLOTS.consec, SLOTS.nightDetail은 위 SLOTS.night으로 통합 — 빈 값으로(아래 조립부에서 자동 무시).
+  SLOTS.consec = '';
+  SLOTS.nightDetail = '';
+    // v3.16.47: 통합으로 인한 빈 자리.
 
-  // 3. 선호도 가중치
-  html+=section('선호도 가중치 (자동배치)','⚖️',
-    '<div style="font-size:10px;color:var(--text3);margin-bottom:8px">기본값 1.0 기준. 값이 클수록 해당 교대에 배정될 확률 증가.</div>'
-    +row('선호(★) 교대 가중치',numInput('wPrefer',R.weights.prefer,0.5,3,0.1),'기본 1.4')
-    +row('중립(○) 교대 가중치',numInput('wNeutral',R.weights.neutral,0.5,2,0.1),'기본 1.0')
-    +row('기피(✕) 교대 가중치',numInput('wAvoid',R.weights.avoid,0.0,1,0.05),'기본 0.3 (0=완전배제)')
+  // 3. 자동배치 가중치 — v3.16.45: 시프트 선호(prefer/avoid/neutral) 가중치는 v3.16.40에서 시프트 선호가
+  //   '월 최대'로 대체되며 무의미해짐 → UI 제거. R.weights.prefer 등은 기본값 유지(코드 보존, 부활 대비).
+  //   파트너 가중치·형평성만 유지.
+  SLOTS.weights = section('자동배치 가중치','⚖️',
+    '<div style="font-size:10px;color:var(--text3);margin-bottom:8px">파트너 선호/기피와 형평성을 조절합니다. 시프트 선호는 간호사 개인창 \'월 최대\'로 통합됨.</div>'
     +row('파트너 선호 가중치',numInput('wPartnerPrefer',R.weights.partnerPrefer,1.0,3,0.1),'기본 1.3')
     +row('파트너 기피 가중치',numInput('wPartnerAvoid',R.weights.partnerAvoid,0.0,1,0.05),'기본 0.2')
     +row('형평성 보정 강도',numInput('wEquity',R.weights.equityStrength,0,1,0.1),'0=없음 ~ 1=강함')
   );
 
   // 4. 수간호사 규칙
-  html+=section('수간호사 배치 규칙','👤',
+  SLOTS.head = section('수간호사 배치 규칙','👤',
     row('평일 배정 교대',selInput('hnWeekday',R.headNurse.weekdayShift,[{v:'D',l:'Day'},{v:'E',l:'Eve'},{v:'N',l:'Night'}]),'')
     +row('일요일',chkInput('hnSundayOff',R.headNurse.sundayOff,'Off 고정'),'')
     +row('공휴일',chkInput('hnHolidayOff',R.headNurse.holidayOff,'Off 고정'),'')
@@ -7366,7 +7398,7 @@ function renderRulesList(){
   );
 
   // 5. 신규간호사 제한 규칙
-  html+=section('신규간호사 배치 제한','🔰',
+  SLOTS.newb = section('신규간호사 배치 제한','🔰',
     '<div style="font-size:10px;color:var(--text3);margin-bottom:8px;padding:6px 8px;background:#F0EDFE;border-radius:6px;color:#4A2E8A">⚠️ 세부 옵션은 추후 확장 예정. 현재는 기본 제한 항목만 설정 가능합니다.</div>'
     +row('신규간호사 제한 적용',chkInput('nnEnabled',R.newNurse.enabled,'활성화'),'')
     +row('야간 단독 배치 금지',chkInput('nnNoNightAlone',R.newNurse.noNightAlone,'선임 반드시 동반'),'')
@@ -7378,7 +7410,7 @@ function renderRulesList(){
   // 6. v3.5: 금지 패턴 (한국 표준)
   // v3.16.23: 자동배치 엔진 선택
   var _eng = R.engine;
-  html+=section('⚙️ 자동배치 엔진','⚙️',
+  SLOTS.engine = section('⚙️ 자동배치 엔진','⚙️',
     '<div style="font-size:10px;color:#0C447C;margin-bottom:8px;padding:6px 8px;background:#E6F1FB;border-radius:6px">'
     +'자동배치 방식을 선택합니다. 둘 다 락(원티드)·속성·인력 정원을 지킵니다.</div>'
     +'<label style="display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;margin-bottom:5px;'+(_eng==='greedy'?'background:#EAF1FB;border:1px solid #B9D2EE':'border:1px solid var(--bd2)')+'">'
@@ -7392,7 +7424,7 @@ function renderRulesList(){
   , true);
 
   var FP=R.forbiddenPatterns;
-  html+=section('🚫 금지 패턴 (한국 표준 듀티 규칙)','🚫',
+  SLOTS.forbid = section('🚫 금지 패턴 (한국 표준 듀티 규칙)','🚫',
     '<div style="font-size:10px;color:#0C447C;margin-bottom:8px;padding:6px 8px;background:#E6F1FB;border-radius:6px">'
     +'한국 간호 표준 및 보건의료노조 단체협약에서 금지하는 연속 근무 패턴. 자동배치 시 회피.</div>'
     +(_eng==='backtrack'
@@ -7409,28 +7441,17 @@ function renderRulesList(){
     +row('NOD (나오데)',chkInput('fpNOD',FP.NOD,'나이트→오프→데이 — 24시간 만에 재출근, 가장 악명'),'')
     +row('EOD (이오데)',chkInput('fpEOD',FP.EOD,'이브닝→오프→데이 — 휴식 부족'),'')
     +row('ED (이브데이)',chkInput('fpED',FP.ED,'이브닝→데이 — 단협 표준 금지'),'')
-    +row('ND (역방향)',chkInput('fpND',FP.ND,'나이트→데이 — 휴식 8시간 미만, 역방향'),'')
-    +row('NE (역방향)',chkInput('fpNE',FP.NE,'나이트→이브닝 — 의학적 최악 역방향'),'')
+    // v3.16.45: ND/NE는 역방향 금지의 핵심 → '🌙 야간 규칙'의 '역방향 교대 금지' 토글로 통합. UI 제거.
     +row('NON',chkInput('fpNON',FP.NON,'나이트→오프→나이트 — 회복 부족'),'')
     +row('NOE',chkInput('fpNOE',FP.NOE,'나이트→오프→이브닝'),'')
     +row('NNNN (4연속 야간)',chkInput('fpNNNN',FP.NNNN,'KOSHA: 3일 후 사고 위험 +36%'),'')
   );
 
-  // 7. v3.5: 야간 근무 세부 규칙
-  var NR=R.nightRules;
-  html+=section('🌙 야간 근무 세부 규칙 (KOSHA GUIDE H-22-2019)','🌙',
-    '<div style="font-size:10px;color:#3C3489;margin-bottom:8px;padding:6px 8px;background:#EEEDFE;border-radius:6px">'
-    +'근로기준법 및 산업안전보건공단 권고 기반. 위반 시 경고 표시.</div>'
-    +row('연속 야간 최대',numInput('nrConsecMax',NR.consecutiveNightMax,1,7),'일 (KOSHA 권고: 3일, 기본: 5일 느슨)')
-    +row('일반 간호사 월 야간 한도',numInput('nrMonthlyRegular',NR.monthlyNightMaxRegular,1,15),'회')
-    +row('야간전담 월 야간 한도',numInput('nrMonthlyDedicated',NR.monthlyNightMaxDedicated,1,20),'회 (단협 표준: 14회)')
-    +row('2연속 야간 후 휴식',numInput('nrRestHours',NR.restAfterConsecutiveNight,0,72),'시간 (참고용)')
-    +row('역방향 교대 금지',chkInput('nrForbidBackward',NR.forbidBackwardRotation,'정방향(D→E→N)만 허용 — E→D, N→E 등 역행 금지'),'')
-  );
+  // v3.16.47: 기존 'SLOTS.nightDetail' 블록은 위 'SLOTS.night'으로 통합 — 제거.
 
   // 8. v3.5: 간호사 속성 기반 규칙
   var AR=R.attributeRules;
-  html+=section('👤 간호사 속성 기반 규칙','👤',
+  SLOTS.attr = section('👤 간호사 속성 기반 규칙','👤',
     '<div style="font-size:10px;color:#27500A;margin-bottom:8px;padding:6px 8px;background:#EAF3DE;border-radius:6px">'
     +'간호사 카드(👥 패널)에서 임산부·야간전담 등 속성 설정 후 적용됩니다.</div>'
     +row('임산부 야간 금지',chkInput('arPregNight',AR.pregnantNoNight,'임산부 N 배정 시 경고'),'')
@@ -7442,7 +7463,7 @@ function renderRulesList(){
 
   // 8.5. v3.8: 원티드 듀티 한도
   var WL=R.wantedLimits;
-  html+=section('📌 원티드 듀티 한도','📌',
+  SLOTS.wanted = section('📌 원티드 듀티 한도','📌',
     '<div style="font-size:10px;color:#C05010;margin-bottom:8px;padding:6px 8px;background:#FFF4EC;border-radius:6px">'
     +'간호사들의 원티드(휴가/오프 신청) 한도. <b>소프트 경고</b>만 표시되고 등록은 허용됩니다. 0 = 무제한.</div>'
     +row('월 전체 한도',numInput('wlTotal',WL.perMonthTotal,0,50),'건 (0=무제한, 권장: 5~10)')
@@ -7450,7 +7471,7 @@ function renderRulesList(){
   );
 
   // 9. 이전 달 패턴 학습 (실험적) — 접이식
-  html+=section('이전 달 패턴 학습 (실험적)','🧠',
+  SLOTS.pattern = section('이전 달 패턴 학습 (실험적)','🧠',
     '<div style="font-size:10px;color:#633806;margin-bottom:8px;padding:6px 8px;background:#FAEEDA;border-radius:6px">⚠️ 실험적 기능입니다. 결과가 이상할 경우 OFF 후 자동배치를 다시 실행하세요.</div>'
     +row('패턴 학습 사용',chkInput('plEnabled',R.patternLearning.enabled,'ON — 이전 달 배치를 참고해 유사 패턴 배정'),'')
     +row('학습 가중치',numInput('plWeight',R.patternLearning.weight,0,1,0.05),'0=무시 ~ 1=강하게 반영')
@@ -7459,7 +7480,7 @@ function renderRulesList(){
 
   // 10. 피로도 점수 가중치 (맨 아래 — 평가 전용, 메인 알고리듬 무관)
   var FG=R.fatigue;
-  html+=section('피로도 점수 (FRI 방법론)','🔋',
+  SLOTS.fatigue = section('피로도 점수 (FRI 방법론)','🔋',
     '<div style="font-size:10px;color:#3A5A8A;margin-bottom:8px;padding:6px 8px;background:#EAF1FA;border-radius:6px">'
     +'영국 HSE <b>Fatigue Risk Index</b> 방법론 기반 평가 지표입니다. <b>자동배치 알고리듬에는 전혀 영향을 주지 않으며</b>, 근무표를 평가해 간호사별 피로도만 표시합니다. 가중치는 현장 상황에 맞게 조정하세요.</div>'
     +row('피로도 표시',chkInput('fgEnabled',FG.enabled,'ON — 간호사 행에 피로도 막대 표시'),'')
@@ -7481,7 +7502,7 @@ function renderRulesList(){
   , true);
 
   // 11. 대안 셀 추천 (실험) — 접이식, 스크롤 영역 안으로 (고정 점유 제거)
-  html+=section('실험: 대안 셀 추천','🧪',
+  SLOTS.alt = section('실험: 대안 셀 추천','🧪',
     '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">'
     +'<input type="checkbox" id="expAltCell" onchange="toggleAltCell(this.checked)" style="width:15px;height:15px;cursor:pointer">'
     +'<span><b>대안 셀 추천 사용</b> <span style="font-size:10px;color:#A35200">베타</span></span></label>'
@@ -7495,7 +7516,7 @@ function renderRulesList(){
   , true);
 
   // 12. 키보드 단축키 — 접이식
-  html+=section('키보드 단축키','⌨️',
+  SLOTS.keys = section('키보드 단축키','⌨️',
     '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">'
     +'<input type="checkbox" id="expKbd" onchange="toggleKbEnabled()" style="width:15px;height:15px;cursor:pointer">'
     +'<span><b>키보드 단축키 사용</b></span></label>'
@@ -7504,6 +7525,39 @@ function renderRulesList(){
     +'<b>방향키</b> 셀 이동 · <b>1~6</b> D/E/N/O/V/경조 입력 · <b>Del/0</b> 삭제 · <b>[ ]</b> 이전/다음 달 · <b>T</b> 오늘 · <b>A</b> 자동배치 · <b>Ctrl+S</b> 저장 · <b>Ctrl+Z</b> 되돌리기 · <b>?</b> 도움말</div>'
   , true);
 
+  // v3.16.46: 슬롯들을 새 순서로 조립 + 일부 섹션을 한 묶음으로 통합.
+  //   야간 묶음(연속근무+야간세부), 신규+속성, 자동배치(가중치+엔진+원티드), 고급·실험(패턴+피로도+대안셀)
+  function _stripSection(htmlStr){
+    // section() 반환 HTML에서 헤더를 제거하고 content만 추출.
+    // 두 패턴 지원: 접이식(<details>... <div style="padding:11px">CONTENT</div></details>) / 일반(<div>헤더</div>CONTENT</div>)
+    var m1 = htmlStr.match(/<div style="padding:11px">([\s\S]*)<\/div><\/details>/);
+    if(m1) return m1[1];
+    // 일반: 헤더 div 뒤의 나머지를 추출
+    var m2 = htmlStr.match(/border-bottom:1px solid var\(--bd2\)">[^<]*<\/div>([\s\S]*)<\/div>$/);
+    if(m2) return m2[1];
+    return htmlStr;  // fallback: 통째
+  }
+  function _hr(){ return '<div style="border-top:1px dashed var(--bd2);margin:14px 0 10px"></div>'; }
+
+  // v3.16.47: 야간은 SLOTS.night 단일 섹션으로 이미 통합됨 → 별도 merge 불필요.
+  var newbAttrCombined = section('🔰 신규간호사·속성 규칙','🔰',
+    _stripSection(SLOTS.newb) + _hr() + _stripSection(SLOTS.attr));
+  var autoCombined = section('⚙️ 자동배치 (엔진·가중치·원티드)','⚙️',
+    _stripSection(SLOTS.engine) + _hr() + _stripSection(SLOTS.weights) + _hr() + _stripSection(SLOTS.wanted));
+  var advancedCombined = section('🔬 고급·실험적 기능','🔬',
+    _stripSection(SLOTS.pattern) + _hr() + _stripSection(SLOTS.fatigue) + _hr() + _stripSection(SLOTS.alt),
+    true);  // 접힘 기본
+
+  // 최종 순서: 8개
+  html = SLOTS.ward
+       + SLOTS.staff
+       + SLOTS.night
+       + SLOTS.forbid
+       + newbAttrCombined
+       + SLOTS.head
+       + autoCombined
+       + advancedCombined
+       + SLOTS.keys;
   document.getElementById('rulesList').innerHTML=html;
 }
 
@@ -7547,10 +7601,9 @@ function saveRules(){
   RULES.set('consecutive','maxNightStreak',gi('maxNightStreak'));
   RULES.set('consecutive','offAfterNight',gi('offAfterNight'));
   RULES.set('consecutive','maxWorkStreak',gi('maxWorkStreak'));
-  RULES.set('consecutive','allowNightToEve',gb('allowNightToEve'));
-  RULES.set('weights','prefer',gn('wPrefer'));
-  RULES.set('weights','neutral',gn('wNeutral'));
-  RULES.set('weights','avoid',gn('wAvoid'));
+  // v3.16.45: allowNightToEve UI 제거 — '역방향 교대 금지' 토글에서 파생(켜면 N→E 금지)
+  RULES.set('consecutive','allowNightToEve', !gb('nrForbidBackward'));
+  // v3.16.45: weights.prefer/neutral/avoid는 시프트 선호 UI 제거로 저장 불필요. 기본값 유지(코드 보존).
   RULES.set('weights','partnerPrefer',gn('wPartnerPrefer'));
   RULES.set('weights','partnerAvoid',gn('wPartnerAvoid'));
   RULES.set('weights','equityStrength',gn('wEquity'));
@@ -7572,8 +7625,10 @@ function saveRules(){
   RULES.forbiddenPatterns.NOD =gb('fpNOD');
   RULES.forbiddenPatterns.EOD =gb('fpEOD');
   RULES.forbiddenPatterns.ED  =gb('fpED');
-  RULES.forbiddenPatterns.ND  =gb('fpND');
-  RULES.forbiddenPatterns.NE  =gb('fpNE');
+  // v3.16.45: ND/NE UI 제거 — '역방향 교대 금지' 토글이 자동 ON/OFF
+  var _bw=gb('nrForbidBackward');
+  RULES.forbiddenPatterns.ND  = _bw;
+  RULES.forbiddenPatterns.NE  = _bw;
   RULES.forbiddenPatterns.NON =gb('fpNON');
   RULES.forbiddenPatterns.NOE =gb('fpNOE');
   RULES.forbiddenPatterns.NNNN=gb('fpNNNN');
@@ -7582,10 +7637,10 @@ function saveRules(){
   var _engRadio=document.querySelector('input[name="r_engine"]:checked');
   if(_engRadio) RULES.engine=_engRadio.value;
 
-  RULES.nightRules.consecutiveNightMax     =gi('nrConsecMax');
+  // v3.16.45: nightRules.consecutiveNightMax는 maxNightStreak 별칭이라 저장 불필요(게터가 자동 동기화)
   RULES.nightRules.monthlyNightMaxRegular  =gi('nrMonthlyRegular');
   RULES.nightRules.monthlyNightMaxDedicated=gi('nrMonthlyDedicated');
-  RULES.nightRules.restAfterConsecutiveNight=gi('nrRestHours');
+  // v3.16.47: nrRestHours 입력 제거 — 엔진 미반영이라 참고 텍스트로만 표시. 기본값(48) 유지.
   RULES.nightRules.forbidBackwardRotation  =gb('nrForbidBackward');
 
   RULES.attributeRules.pregnantNoNight       =gb('arPregNight');
